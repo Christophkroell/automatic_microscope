@@ -1,8 +1,33 @@
 #include <AccelStepper.h>
+
+#define HALFSTEP 8
+
+#define motor1_pin1  19     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor1_pin2  21     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor1_pin3  22   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+#define motor1_pin4  23    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor1_pin 12
+
+#define motor2_pin1  16     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor2_pin2  17     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor2_pin3  5    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+#define motor2_pin4  18    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor2_pin 13
+
+#define motor3_pin1  15     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor3_pin3  0    // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
+#define motor3_pin4  4    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor3_pin 14
+
+
+#define led1_pin 32
+#define led2_pin 33
+
 unsigned long start_millis;
 unsigned long current_millis;
 uint loops_per_second = 0;
-const unsigned long log_period = 1000;
+const unsigned long log_period = 25;
 bool do_log;
 
 enum class MOTOR_STATE{
@@ -34,7 +59,6 @@ class Motor {
     MOTOR_STATE state;
 
     Motor(AccelStepper stepper, int home_pin) {
-      Serial.println("WHAT EVER");
       this->stepper = stepper;
       this->home_pin = home_pin;
     }
@@ -61,7 +85,6 @@ class Motor {
       this->steps_per_rotation = 4096;
       float circumverence_mm = 35.36;
       this->mm_per_step = circumverence_mm / this->steps_per_rotation;
-      Serial.println("mm per step: " + String(this->mm_per_step));
       this->home_speed_mms = 1;
       this->home_direction = 1;
       this->limit_min_mm = -0.01;
@@ -82,7 +105,7 @@ class Motor {
       this->stepper.run();
       if (do_log){
         if (this->stepper.isRunning()){
-          Serial.println("current position: " + String(this->stepper.currentPosition()) + ", speed: " + String(this->stepper.speed()));
+          //Serial.println("current position: " + String(this->stepper.currentPosition()) + ", speed: " + String(this->stepper.speed()));
         }
       }
       if (this->state == MOTOR_STATE::UNKNOWN) {
@@ -92,12 +115,12 @@ class Motor {
         if (this->is_home_sensor_active()) {
           this->stepper.setCurrentPosition(0);
           this->state = MOTOR_STATE::READY;
-          Serial.println("Home sensor found");
+          Serial.print("home,");
           return;
         }
         if (!this->stepper.isRunning()) {
           this->state = MOTOR_STATE::ERROR;
-          Serial.println("Home not found");
+          Serial.print("not_home,");
           return;
         }
       }
@@ -144,15 +167,13 @@ class Motor {
         return;
       }
       long steps_to_move = mm_to_steps(mm_to_move);
-      Serial.print("go to step:");
-      Serial.println(steps_to_move);
       this->stepper.move(steps_to_move);
     }
     
     bool set_state_to_speedmode() {
       if (this->state == MOTOR_STATE::READY || this->state == MOTOR_STATE::SPEEDMODE || this->state == MOTOR_STATE::UNKNOWN) {
         this->state = MOTOR_STATE::SPEEDMODE;
-        Serial.println("was set to speed mode");
+        //Serial.println("was set to speed mode");
       }
     }
 
@@ -176,41 +197,22 @@ class Motor {
 
 };
 
-#define HALFSTEP 8
+class Led {
+  private:
+    int pwm_channel;
 
-//#define motorPin1  32//8     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-//#define motorPin2  33//9     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-//#define motorPin3  25//10    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-//#define motorPin4  26//11    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  public:
+    Led(int pin, int pwm_channel) {
+      this->pwm_channel = pwm_channel;
+      ledcSetup(pwm_channel, 1000, 8);
+      ledcAttachPin(pin, pwm_channel);
+      ledcWrite(pwm_channel, 0);
+    }
 
-//#define motorPin1  19     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-//#define motorPin2  21     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-//#define motorPin3  22   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-//#define motorPin4  23    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-
-
-//#define motorPin4  13    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-//#define motorPin1  12     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-//#define motorPin2  14     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-//#define motorPin3  27   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-
-#define motor1_pin1  19     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor1_pin2  21     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor1_pin3  22   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor1_pin4  23    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor1_pin 12
-
-#define motor2_pin1  16     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor2_pin2  17     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor2_pin3  5    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor2_pin4  18    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor2_pin 13
-
-#define motor3_pin1  15     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor3_pin3  0    // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
-#define motor3_pin4  4    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor3_pin 14
+    void set_to(int(brightness)){
+      ledcWrite(this->pwm_channel, brightness);
+    }
+};
 
 // not working pins 0,1,9,10,11,34,35,36,39
 
@@ -226,11 +228,11 @@ int new_speed_m3 = 25;
 AccelStepper stepper1(HALFSTEP, motor1_pin1, motor1_pin3, motor1_pin2, motor1_pin4);
 AccelStepper stepper2(HALFSTEP, motor2_pin1, motor2_pin3, motor2_pin2, motor2_pin4);
 AccelStepper stepper3(HALFSTEP, motor3_pin1, motor3_pin3, motor3_pin2, motor3_pin4);
-Motor motor_x(stepper1, home_sensor1_pin);
-Motor motor_y(stepper2, home_sensor2_pin);
+Motor motor_a(stepper1, home_sensor1_pin);
+Motor motor_b(stepper2, home_sensor2_pin);
 Motor motor_c(stepper3, home_sensor3_pin);
-
-
+Led led_a(led1_pin, 0);
+Led led_b(led2_pin, 1);
 
 String received_string;
 int current_direction = 1;
@@ -242,17 +244,31 @@ int current_direction = 1;
 
 void parse_string() {
   Motor* used_motor;
+  Led* used_led;
+  bool is_led = false;
+  if (received_string.length() == 0) {
+    Serial.print("motor_controller_FZT,");
+    return;    
+  }
   char axis = received_string.charAt(0);
   char mode = received_string.charAt(1);
   switch(axis) {
-    case 'X':
-      used_motor = &motor_x;
+    case 'F':
+      used_motor = &motor_a;
       break;
-    case 'Y':
-      used_motor = &motor_y;
+    case 'Z':
+      used_motor = &motor_b;
       break;
-    case 'C':
+    case 'T':
       used_motor = &motor_c;
+      break;
+    case 'L':
+      used_led = &led_a;
+      is_led = true;
+      break;
+    case 'M':
+      used_led = &led_b;
+      is_led = true;
       break;
   }
   float distance_or_speed = 0;
@@ -263,6 +279,10 @@ void parse_string() {
     ", Axis: " + String(axis) + 
     ", Mode: " + String(mode) +
     ", Speed or Distance: " + String(distance_or_speed));
+  if (is_led) {
+    used_led->set_to(int(distance_or_speed));
+    return;
+  }
   switch(mode) {
     case 'H':
       used_motor->do_home();
@@ -282,34 +302,19 @@ void parse_string() {
       break;
   }
   return;
-  //Serial.println("used_motor: " + String(used_motor));
-  if (received_string.indexOf('X') > 0) {
-    
-    Serial.println("go to mm: " + String(120*current_direction));
-    motor_x.set_this_zero();
-    motor_x.go_pos_mm(100*current_direction);
-    current_direction *= -1;
-  }
-  if (received_string.indexOf('Y') > 0) {
-    motor_y.do_home();
-  }
-  if (received_string.indexOf('C') > 0) {
-    motor_c.do_home();
-  }
 }
+
+
+
 
 void setup()
 {
   Serial.begin(115200);
-  motor_x.set_defaults();
-  motor_y.set_defaults();
+  motor_a.set_defaults();
+  motor_b.set_defaults();
   motor_c.set_defaults();
   start_millis = millis();
   received_string = "";
-  String tests = "XS0.1";
-  Serial.println(tests);
-  Serial.println(tests.substring(2));
-  Serial.println(tests.substring(2).toFloat());
 }
 
 void handle_serial_data() {
@@ -319,12 +324,13 @@ void handle_serial_data() {
   }
   if (data != ',') {
     received_string += data;
-    Serial.println("received_string: " + String(received_string));
+    //Serial.println("received_string: " + String(received_string));
     return;
   }
   parse_string();
   received_string = "";
 }
+
 
 void loop()
 {
@@ -333,42 +339,15 @@ void loop()
   current_millis = millis();
   if (current_millis - start_millis >= log_period) {
     start_millis = current_millis;
-    do_log = true;
+  //  do_log = true;
     //Serial.println("loops_per_second: " + String(loops_per_second));
-    loops_per_second = 0;
+  //  loops_per_second = 0;
   }
 
   if (Serial.available() > 0) {
-    // see message shape
-    // Axis, single axis. for example X
-    // Mode,
-    handle_serial_data(); 
-    //char data = Serial.read();
-    //if (data == '\n') {
-    //  break;
-    //}
-    //if (data != ',') {
-    //  received_string += data;
-      
-    //} else {
-    //  parse_string();
-    //  received_string = "";
-    //}
+    handle_serial_data();
   }
-
-  motor_x.run();
-  motor_y.run();
+  motor_a.run();
+  motor_b.run();
   motor_c.run();
-  //stepper3.setSpeed(new_speed_m3);
-  //stepper3.runSpeed();
-  //Change direction at the limits
-  //  if (stepper1.distanceToGo() == 0)
-  // {
-  //   Serial.println(stepper1.currentPosition());
-  //   stepper1.setCurrentPosition(0);
-  //   endPoint = -endPoint;
-  //   stepper1.moveTo(endPoint);
-  //   Serial.println(stepper1.currentPosition());
-  // }
-  //  stepper1.run();
 }
