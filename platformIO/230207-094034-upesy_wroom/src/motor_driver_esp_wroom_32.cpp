@@ -190,7 +190,7 @@ class Motor {
       this->stepper.move(steps_to_move);
     }
     
-    bool set_state_to_speedmode() {
+    void set_state_to_speedmode() {
       if (this->state == MOTOR_STATE::READY || this->state == MOTOR_STATE::SPEEDMODE || this->state == MOTOR_STATE::UNKNOWN) {
         this->state = MOTOR_STATE::SPEEDMODE;
         //Serial.println("was set to speed mode");
