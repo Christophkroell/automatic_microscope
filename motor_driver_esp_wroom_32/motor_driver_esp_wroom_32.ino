@@ -2,43 +2,31 @@
 
 #define HALFSTEP 8
 
-#define pin1 23 // fail
-#define pin2 22 // fail
-#define pin3 1  // pass
-#define pin4 3  // pass
-#define pin5 21 // pass
-#define pin6 19 // pass
-#define pin7 18 // pass
-#define pin8 5  // pass
-#define pin9 17 // pass
-#define pin10 16 // pass
-#define pin11 4  // pass
-#define pin12 2  // pass but esp led
-#define pin13 15
-
-// 27, 14, 12, 13, 32, 33, 25, 26
-
-#define motor1_pin1  27     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor1_pin2  14     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor1_pin3  12   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor1_pin4  13    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-//#define motor1_pin1  23     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-//#define motor1_pin2  22     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+//todo if xyr or ...
+#define motor1_str 'X'
+#define motor1_pin1  32    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor1_pin2  33    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor1_pin3  25    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+#define motor1_pin4  26    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+//#define motor1_pin1  23  // IN1 on ULN2003 ==> Blue   on 28BYJ-48 
+//#define motor1_pin2  22  // IN2 on ULN2004 ==> Pink   on 28BYJ-48
 //#define motor1_pin3  1   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-//#define motor1_pin4  3    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor1_pin 23
+//#define motor1_pin4  3   // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor1_pin 13
 
-#define motor2_pin1  32     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor2_pin2  33     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor2_pin3  25    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor2_pin4  26    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor2_pin 23
+#define motor2_str 'Y'
+#define motor2_pin1  18    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor2_pin2  5    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor2_pin3  17     // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+#define motor2_pin4  16    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor2_pin 13
 
-#define motor3_pin1  17     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor3_pin2  16     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor3_pin3  4    // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
-#define motor3_pin4  15    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor3_pin 23
+#define motor3_str 'R'
+#define motor3_pin1  4    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+#define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+#define motor3_pin3  15     // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
+#define motor3_pin4  19    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+#define home_sensor3_pin 13
 
 
 #define led1_pin 22
@@ -81,6 +69,7 @@ class Motor {
     Motor(AccelStepper stepper, int home_pin) {
       this->stepper = stepper;
       this->home_pin = home_pin;
+      pinMode(this->home_pin, INPUT_PULLUP);
     }
 
     void reset() {
@@ -95,7 +84,6 @@ class Motor {
     void update_stepper() {
       this->stepper.setMaxSpeed(this->mm_to_steps(this->max_speed_mms));
       this->stepper.setAcceleration(this->mm_to_steps(this->acceleration_mms2));
-      pinMode(this->home_pin, INPUT_PULLUP);
     }
     
     void set_default_parameter() {
@@ -267,19 +255,19 @@ void parse_string() {
   Led* used_led;
   bool is_led = false;
   if (received_string.length() == 0) {
-    Serial.print("motor_controller_FZT,");
+    Serial.print("motor_controller_XYR,");
     return;    
   }
   char axis = received_string.charAt(0);
   char mode = received_string.charAt(1);
   switch(axis) {
-    case 'F':
+    case motor1_str:
       used_motor = &motor_a;
       break;
-    case 'Z':
+    case motor2_str:
       used_motor = &motor_b;
       break;
-    case 'T':
+    case motor3_str:
       used_motor = &motor_c;
       break;
     case 'L':
@@ -333,9 +321,9 @@ void setup()
   motor_a.set_defaults();
   motor_b.set_defaults();
   motor_c.set_defaults();
-  motor_a.do_home();
-  motor_b.do_home();
-  motor_c.do_home();
+  //motor_a.do_home();
+  //motor_b.do_home();
+  //motor_c.do_home();
   start_millis = millis();
   received_string = "";
 }

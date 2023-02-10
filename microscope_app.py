@@ -158,16 +158,17 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         if is_simulation:
             master, slave = pty.openpty()
             path_to_controller = os.ttyname(slave)
-            # print(f"sim serial_path: {path_to_controller}")
-        else:
-            path_to_controller = find_serial_device("controller")
-        print(f"path to controller: {path_to_controller}")
-        if is_simulation:
             master, slave = pty.openpty()
             path_to_motor_FZT = os.ttyname(slave)
+            master, slave = pty.openpty()
+            path_to_motor_XYR = os.ttyname(slave)
             # print(f"sim serial_path: {path_to_motor_FZT}")
         else:
             path_to_motor_FZT = find_serial_device("motor_controller_FZT")
+            path_to_motor_XYR = find_serial_device("motor_controller_XYR")
+            path_to_controller = find_serial_device("controller")
+
+        print(f"path to controller: {path_to_controller}")
         self.serial_motor_fzt = serial.Serial(path_to_motor_FZT, 115200)
         print(f"path to motor_FZT: {path_to_motor_FZT}")
         self.controller_thread = SerialMonitor(path_to_controller)
