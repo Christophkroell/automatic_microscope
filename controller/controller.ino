@@ -1,4 +1,12 @@
 // Potentiometer is connected to GPIO 34 (Analog ADC1_CH6)
+#include <BluetoothSerial.h>
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+
+BluetoothSerial SerialBT;
+
 #define ANAIN_X1 33
 #define ANAIN_Y1 32
 #define ANAIN_X2 35
@@ -62,17 +70,20 @@ public:
     this->previous_average = this->average;
     int send_value = 0;
     if (abs(this->average - this->zero_offset) < this->dead_center) {
-      Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+      //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+      SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
       return;
       //return float(0);
     }
     if (this->average < this->zero_offset) {
       send_value = ((this->average / (this->zero_offset - this->dead_center)) - 1) * 1000;
-      Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+      //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+      SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
       return;
     }
     send_value = ((this->average - this->zero_offset) / (this->sensor_resolution - this->zero_offset)) * 1000;
-    Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+    //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
+    SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
     return;
   }
 };
@@ -98,6 +109,7 @@ ControllerAxis axis_l2 = ControllerAxis('M', ANAIN_L2);
 
 void setup() {
   Serial.begin(115200);
+  SerialBT.begin("bt_controller");
   delay(1000);
   axis_z.zero_sensor();
   axis_f.zero_sensor();
@@ -119,6 +131,11 @@ void loop() {
   if (Serial.available() > 0) {
     if (Serial.read() == ',') {
       Serial.print("controller,");
+    }
+  }
+  if (SerialBT.available() > 0) {
+    if (SerialBT.read() == ',') {
+      SerialBT.print("controller,");
     }
   }
 }
