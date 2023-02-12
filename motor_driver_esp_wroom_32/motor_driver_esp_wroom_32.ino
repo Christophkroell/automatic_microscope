@@ -3,6 +3,7 @@
 #define HALFSTEP 8
 
 //todo if xyr or ...
+#define device_name "motor_controller_XYR,"
 #define motor1_str 'X'
 #define motor1_pin1  32    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
 #define motor1_pin2  33    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
@@ -255,7 +256,7 @@ void parse_string() {
   Led* used_led;
   bool is_led = false;
   if (received_string.length() == 0) {
-    Serial.print("motor_controller_XYR,");
+    Serial.print(device_name);
     return;    
   }
   char axis = received_string.charAt(0);
@@ -321,9 +322,6 @@ void setup()
   motor_a.set_defaults();
   motor_b.set_defaults();
   motor_c.set_defaults();
-  //motor_a.do_home();
-  //motor_b.do_home();
-  //motor_c.do_home();
   start_millis = millis();
   received_string = "";
 }
