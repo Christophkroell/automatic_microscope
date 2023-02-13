@@ -1,6 +1,6 @@
 import serial
 import os
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
 is_simulation = True
 if is_simulation:
