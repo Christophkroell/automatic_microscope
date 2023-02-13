@@ -1,5 +1,6 @@
 import serial
 import os
+import cv2
 from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
 is_simulation = True
@@ -8,6 +9,7 @@ if is_simulation:
     import pty
 else:
     from picamera import PiCamera
+    import picamera.array
 import time
 
 camera = PiCamera()
@@ -197,7 +199,19 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         camera.awb_mode = 'auto'
         # camera.preview_fullscreen = False # optional
         # camera.preview_window = (0, 50, 1280, 960)  # optional
-        camera.start_preview()
+        # camera.start_preview()
+        # with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 30
+        with picamera.array.PiRGBArray(camera, size=(640, 480)) as output:
+            for frame in camera.capture_continuous(output, format="bgr", use_video_port=True):
+                image = frame.array
+                cv2.imshow("Video Stream", image)
+                key = cv2.waitKey(1) & 0xFF
+                output.truncate(0)
+                if key == ord("q"):
+                    break
+        cv2.destroyAllWindows()
 
         #motor_controller_XYR
 
