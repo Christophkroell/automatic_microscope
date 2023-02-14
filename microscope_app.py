@@ -158,6 +158,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 class MicroscopeGui(QtWidgets.QMainWindow):
     def __init__(self):
         super(MicroscopeGui, self).__init__()
+        is_simulation = True
         if is_simulation:
             master, slave = pty.openpty()
             path_to_controller = os.ttyname(slave)
