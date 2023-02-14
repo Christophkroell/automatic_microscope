@@ -223,7 +223,9 @@ class MicroscopeGui(QtWidgets.QWidget):
         camera.shutter_speed = 0
         camera.framerate = 30
         camera.exposure_mode = 'auto'
-        camera.awb_mode = 'auto'
+        #camera.awb_mode = 'auto'
+        camera.awb_mode = 'off'
+        camera.awb_gains = (1, 1)
         # camera.preview_fullscreen = False # optional
         # camera.preview_window = (0, 50, 1280, 960)  # optional
         # camera.start_preview()
