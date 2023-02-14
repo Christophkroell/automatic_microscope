@@ -233,8 +233,10 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         self.thread = VideoThread(camera=camera)
         self.thread.change_pixmap_signal.connect(self.update_image)
         self.thread.start()
-        self.video_widget = QtWidgets.QLabel(self)
-        main_layout.addWidget(self.video_widget, 10)
+        self.video_widget = QtWidgets.QLabel()
+        self.video_widget.setFixedSize(500, 500)
+        main_layout.addWidget(self.video_widget)
+
         main_layout.addWidget(camera_control_widget)
 
     def update_image(self, qt_image):
