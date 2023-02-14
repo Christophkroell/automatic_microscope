@@ -1,5 +1,6 @@
 import serial
 import os
+import numpy.core.multiarray
 import cv2
 from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
