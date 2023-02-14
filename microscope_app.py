@@ -159,6 +159,7 @@ class VideoThread(QtCore.QThread):
     change_pixmap_signal = QtCore.pyqtSignal(QtGui.QImage)
 
     def __init__(self, camera):
+        super(VideoThread, self).__init__()
         self.camera = camera
 
     def run(self):
