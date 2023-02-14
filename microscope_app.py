@@ -226,8 +226,8 @@ class MicroscopeGui(QtWidgets.QWidget):
         #camera.awb_mode = 'auto'
         camera.awb_mode = 'off'
         camera.awb_gains = (1, 1)
-        #camera.analog_gain = 1.0
-        camera.digital_gain = 1.0
+        # camera.analog_gain = 1.0
+        # camera.digital_gain = 1.0
         # camera.preview_fullscreen = False # optional
         # camera.preview_window = (0, 50, 1280, 960)  # optional
         # camera.start_preview()
