@@ -4,7 +4,7 @@ import numpy.core.multiarray
 import cv2
 from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
-is_simulation = True
+is_simulation = False
 if is_simulation:
     from picamera_sim import PiCamera
     import pty
