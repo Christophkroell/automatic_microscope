@@ -11,6 +11,7 @@ if is_simulation:
 else:
     from picamera import PiCamera
     import picamera.array
+    from picamera.array import PiRGBArray
 import time
 
 camera = PiCamera()
@@ -154,6 +155,27 @@ class CameraSettingsWidget(QtWidgets.QWidget):
         self.camera.exposure_mode = value
 
 
+class VideoThread(QtCore.QThread):
+    change_pixmap_signal = QtCore.pyqtSignal(QtGui.QImage)
+
+    def __init__(self, camera):
+        self.camera = camera
+
+    def run(self):
+        camera = self.camera
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+        rawCapture = PiRGBArray(camera, size=(640, 480))
+
+        for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+            image = frame.array
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            h, w, ch = image.shape
+            bytesPerLine = ch * w
+            qt_image = QtGui.QImage(image.data, w, h, bytesPerLine, QtGui.QImage.Format_RGB888)
+            self.change_pixmap_signal.emit(qt_image)
+            rawCapture.truncate(0)
+
 
 class MicroscopeGui(QtWidgets.QMainWindow):
     def __init__(self):
@@ -179,7 +201,9 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         self.controller_thread.serial_input.connect(self.handle_controller_input)
         self.controller_thread.start()
         camera_control_widget = CameraSettingsWidget(camera=camera)
-        self.setCentralWidget(camera_control_widget)
+        main_layout = QtWidgets.QHBoxLayout()
+        self.setLayout(main_layout)
+        #self.setCentralWidget(camera_control_widget)
         brightness = 50
         camera.brightness = brightness
         contrast = 0
@@ -205,15 +229,25 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         # with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
         camera.framerate = 30
-        with picamera.array.PiRGBArray(camera, size=(640, 480)) as output:
-            for frame in camera.capture_continuous(output, format="bgr", use_video_port=True):
-                image = frame.array
-                cv2.imshow("Video Stream", image)
-                key = cv2.waitKey(1) & 0xFF
-                output.truncate(0)
-                if key == ord("q"):
-                    break
-        cv2.destroyAllWindows()
+        self.thread = VideoThread()
+        self.thread.change_pixmap_signal.connect(self.update_image)
+        self.thread.start()
+        self.video_widget = QtWidgets.QLabel(self)
+        main_layout.addWidget(self.video_widget)
+        main_layout.addWidget(camera_control_widget)
+
+    def update_image(self, qt_image):
+        pixmap = QtGui.QPixmap.fromImage(qt_image)
+        self.video_widget.setPixmap(pixmap)
+        #with picamera.array.PiRGBArray(camera, size=(640, 480)) as output:
+        #    for frame in camera.capture_continuous(output, format="bgr", use_video_port=True):
+        #        image = frame.array
+        #        cv2.imshow("Video Stream", image)
+        #        key = cv2.waitKey(1) & 0xFF
+        #        output.truncate(0)
+        #        if key == ord("q"):
+        #            break
+        #cv2.destroyAllWindows()
 
         #motor_controller_XYR
 
