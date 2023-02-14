@@ -178,7 +178,7 @@ class VideoThread(QtCore.QThread):
             rawCapture.truncate(0)
 
 
-class MicroscopeGui(QtWidgets.QMainWindow):
+class MicroscopeGui(QtWidgets.QWidget):
     def __init__(self):
         super(MicroscopeGui, self).__init__()
         is_simulation = True
