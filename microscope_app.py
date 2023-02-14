@@ -165,7 +165,7 @@ class VideoThread(QtCore.QThread):
     def run(self):
         camera = self.camera
         camera.resolution = (640, 480)
-        camera.framerate = 24
+        #camera.framerate = 24
         rawCapture = PiRGBArray(camera, size=(640, 480))
 
         for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -219,13 +219,15 @@ class MicroscopeGui(QtWidgets.QWidget):
         camera.rotation = 180
         camera.annotate_text_size = 100
         camera.annotate_text = ""
-        camera.iso = 0
-        camera.shutter_speed = 0
-        camera.framerate = 30
-        camera.exposure_mode = 'auto'
+        camera.iso = 100
+        camera.shutter_speed = 10000
+        camera.framerate = 10
+        camera.exposure_mode = 'off'
         #camera.awb_mode = 'auto'
         camera.awb_mode = 'off'
         camera.awb_gains = (1, 1)
+        camera.analog_gain = 1.0
+        camera.digital_gain = 1.0
         # camera.preview_fullscreen = False # optional
         # camera.preview_window = (0, 50, 1280, 960)  # optional
         # camera.start_preview()
