@@ -5,9 +5,9 @@ import cv2
 from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
 is_simulation = False
+import pty
 if is_simulation:
     from picamera_sim import PiCamera
-    import pty
 else:
     from picamera import PiCamera
     import picamera.array
