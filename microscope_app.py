@@ -229,7 +229,7 @@ class MicroscopeGui(QtWidgets.QMainWindow):
         # with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
         camera.framerate = 30
-        self.thread = VideoThread()
+        self.thread = VideoThread(camera=camera)
         self.thread.change_pixmap_signal.connect(self.update_image)
         self.thread.start()
         self.video_widget = QtWidgets.QLabel(self)
