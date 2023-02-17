@@ -51,17 +51,22 @@ enum class MOTOR_STATE{
 class Motor {
   private:
     AccelStepper stepper;
-    float mm_per_step;
-    int steps_per_rotation;
-    float limit_min_mm;
-    float limit_max_mm;
+    //float mm_per_step;
+    //int steps_per_rotation;
+    //float limit_min_mm;
+    //float limit_max_mm;
     int home_pin;
-    float home_speed_mms;
-    int home_direction;
-    float speed_mms;
-    float speed_mode_speed_mms;
-    float max_speed_mms;
-    float acceleration_mms2;
+    int home_speed;
+    //float home_speed_mms;
+    //int home_direction;
+    //float speed_mms;
+    int speed;
+    //float speed_mode_speed_mms;
+    int speed_mode_speed;
+    int max_speed;
+    int acceleration;
+    //float max_speed_mms;
+    //float acceleration_mms2;
     
 
   public:
@@ -83,23 +88,23 @@ class Motor {
       this->update_stepper();
     }
     void update_stepper() {
-      this->stepper.setMaxSpeed(this->mm_to_steps(this->max_speed_mms));
-      this->stepper.setAcceleration(this->mm_to_steps(this->acceleration_mms2));
+      this->stepper.setMaxSpeed(this->max_speed);
+      this->stepper.setAcceleration(this->acceleration);
     }
     
     void set_default_parameter() {
-      this->speed_mms = 5;
-      this->speed_mode_speed_mms = 0;
+      //this->speed_mms = 5;
+      //this->speed_mode_speed_mms = 0;
       this->state = MOTOR_STATE::UNKNOWN;
-      this->steps_per_rotation = 4096;
-      float circumverence_mm = 35.36;
-      this->mm_per_step = circumverence_mm / this->steps_per_rotation;
-      this->home_speed_mms = 1;
-      this->home_direction = 1;
-      this->limit_min_mm = -0.01;
-      this->limit_max_mm = 100;
-      this->max_speed_mms = 12.5;
-      this->acceleration_mms2 = 4;
+      //this->steps_per_rotation = 4096;
+      //float circumverence_mm = 35.36;
+      //this->mm_per_step = circumverence_mm / this->steps_per_rotation;
+      //this->home_speed_mms = 1;
+      //this->home_direction = 1;
+      //this->limit_min_mm = -0.01;
+      //this->limit_max_mm = 100;
+      //this->max_speed_mms = 12.5;
+      //this->acceleration_mms2 = 4;
     }
     
     bool is_home_sensor_active() {
@@ -110,7 +115,6 @@ class Motor {
     }
 
     void run() {
-      
       this->stepper.run();
       if (do_log){
         if (this->stepper.isRunning()){
@@ -134,7 +138,7 @@ class Motor {
         }
       }
       if (this->state == MOTOR_STATE::SPEEDMODE) {
-        this->stepper.setSpeed(this->mm_to_steps(speed_mode_speed_mms));
+        this->stepper.setSpeed(this->speed_mode_speed);
         this->stepper.runSpeed();
         //Serial.println("in step mode");
       }
@@ -144,6 +148,7 @@ class Motor {
       this->stepper.setCurrentPosition(0);
     }
 
+    /*
     float mm_to_steps(float mms) {
       float steps = mms / this->mm_per_step;
       //Serial.println("mms: " + String(mms) + " to steps: " + String(steps));
@@ -152,17 +157,17 @@ class Motor {
     
     void setSpeed_mms(float speed_mms) {
       this->stepper.setMaxSpeed(this->mm_to_steps(speed_mms));
-    }
+    }*/
 
-    void go_pos_mm(long new_pos) {
+    void go_to_step(long new_pos) {
       if (this->state != MOTOR_STATE::READY){
         Serial.println("can not do absolute move. Motor not in READY state");
         return;
       }
-      this->stepper.moveTo(this->mm_to_steps(new_pos));
+      this->stepper.moveTo(new_pos);
     }
 
-    void move_mm(long mm_to_move) {
+    void go_steps(long steps_to_move) {
       if (this->state == MOTOR_STATE::ERROR) {
         Serial.println("Move not allowed, Motor in ERROR state");
         return;
@@ -175,7 +180,6 @@ class Motor {
         Serial.println("Move not allowed, Motor is MOVING");
         return;
       }
-      long steps_to_move = mm_to_steps(mm_to_move);
       this->stepper.move(steps_to_move);
     }
     
@@ -186,22 +190,20 @@ class Motor {
       }
     }
 
-    void set_speed_mode_speed_mms(float speed_mms) {
-      if (speed_mms > this->max_speed_mms) {
-        speed_mms = this->max_speed_mms;
-      }
-      this->speed_mode_speed_mms = speed_mms;
+    void set_speed_mode_speed(float speed) {
+      this->speed_mode_speed = speed;
     }
 
     void do_home() {
-      Serial.print("Home sequence started, with speed: ");
-      Serial.println(this->home_speed_mms);
-      this->setSpeed_mms(this->home_speed_mms);
-      long max_movment_distance = (this->limit_max_mm - this->limit_min_mm) * this->home_direction;
-      Serial.print("Will move to: ");
-      Serial.println(max_movment_distance);
-      this->move_mm(max_movment_distance);
-      this->state = MOTOR_STATE::HOMING;
+      //Serial.print("Home sequence started, with speed: ");
+      //Serial.println(this->home_speed);
+      //this->stepper.
+      //this->setSpeed_mms(this->home_speed_mms);
+      //long max_movment_distance = (this->limit_max_mm - this->limit_min_mm) * this->home_direction;
+      //Serial.print("Will move to: ");
+      //Serial.println(max_movment_distance);
+      //this->move_mm(max_movment_distance);
+      //this->state = MOTOR_STATE::HOMING;
     }
 
 };
@@ -297,13 +299,13 @@ void parse_string() {
       used_motor->do_home();
       return;
     case 'A':
-      used_motor->go_pos_mm(distance_or_speed);
+      used_motor->go_to_step(long(distance_or_speed));
       break;
     case 'R':
-      used_motor->move_mm(distance_or_speed);
+      used_motor->go_steps(long(distance_or_speed));
       break;
     case 'S':
-      used_motor->set_speed_mode_speed_mms(distance_or_speed);
+      used_motor->set_speed_mode_speed(distance_or_speed);
       used_motor->set_state_to_speedmode();
       break;
     case 'E':
@@ -312,8 +314,6 @@ void parse_string() {
   }
   return;
 }
-
-
 
 
 void setup()
