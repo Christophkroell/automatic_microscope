@@ -1,37 +1,70 @@
 #include <AccelStepper.h>
-
 #define HALFSTEP 8
 
+#define is_xyr_board true
+#define is_fzt_board false
+
 //todo if xyr or ...
-#define device_name "motor_controller_XYR,"
-#define motor1_str 'X'
-#define motor1_pin1  32    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor1_pin2  33    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor1_pin3  25    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor1_pin4  26    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-//#define motor1_pin1  23  // IN1 on ULN2003 ==> Blue   on 28BYJ-48 
-//#define motor1_pin2  22  // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-//#define motor1_pin3  1   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-//#define motor1_pin4  3   // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor1_pin 13
+#if is_xyr_board
+  #define device_name "motor_controller_XYR,"
+  #define motor1_str 'X'
+  #define motor1_pin1  32    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor1_pin2  33    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor1_pin3  25    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+  #define motor1_pin4  26    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor1_pin 13
 
-#define motor2_str 'Y'
-#define motor2_pin1  18    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor2_pin2  5    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor2_pin3  17     // IN3 on ULN2003 ==> Yellow on 28BYJ-48
-#define motor2_pin4  16    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor2_pin 13
+  #define motor2_str 'Y'
+  #define motor2_pin1  18    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor2_pin2  5    // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor2_pin3  17     // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+  #define motor2_pin4  16    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor2_pin 13
 
-#define motor3_str 'R'
-#define motor3_pin1  4    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
-#define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
-#define motor3_pin3  15     // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
-#define motor3_pin4  19    // IN4 on ULN2003 ==> Orange on 28BYJ-48
-#define home_sensor3_pin 13
+  #define motor3_str 'R'
+  #define motor3_pin1  4    // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor3_pin3  15     // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
+  #define motor3_pin4  19    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor3_pin 13
+
+  #define has_led false  
+#endif
+
+#if is_fzt_board
+  #define device_name "motor_controller_FZT,"
+  #define motor1_str 'F'
+  #define motor1_pin1  19     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor1_pin2  21     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor1_pin3  22   // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+  #define motor1_pin4  23    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor1_pin 12
+
+  #define motor2_str 'Z'
+  #define motor2_pin1  16     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor2_pin2  17     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor2_pin3  5    // IN3 on ULN2003 ==> Yellow on 28BYJ-48
+  #define motor2_pin4  18    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor2_pin 13
+
+  #define motor3_str 'T'
+  #define motor3_pin1  15     // IN1 on ULN2003 ==> Blue   on 28BYJ-48
+  #define motor3_pin2  2     // IN2 on ULN2004 ==> Pink   on 28BYJ-48
+  #define motor3_pin3  0    // IN3 on ULN2003 ==> Yellow on 28BYJ-48 // works but high
+  #define motor3_pin4  4    // IN4 on ULN2003 ==> Orange on 28BYJ-48
+  #define home_sensor3_pin 14
+
+  #define has_led true
+#endif
 
 
-#define led1_pin 22
-#define led2_pin 22
+#if has_led
+  #define led1_pin 32
+  #define led1_str 'L'
+  #define led2_pin 33
+  #define led2_str 'M'
+#endif
+
 
 unsigned long start_millis;
 unsigned long current_millis;
@@ -51,6 +84,7 @@ enum class MOTOR_STATE{
 class Motor {
   private:
     AccelStepper stepper;
+    char motor_id;
     //float mm_per_step;
     //int steps_per_rotation;
     //float limit_min_mm;
@@ -72,7 +106,8 @@ class Motor {
   public:
     MOTOR_STATE state;
 
-    Motor(AccelStepper stepper, int home_pin) {
+    Motor(AccelStepper stepper, int home_pin, char motor_id) {
+      this->motor_id = motor_id;
       this->stepper = stepper;
       this->home_pin = home_pin;
       pinMode(this->home_pin, INPUT_PULLUP);
@@ -194,6 +229,14 @@ class Motor {
       this->speed_mode_speed = speed;
     }
 
+    void set_current_position(long position) {
+      this->stepper.setCurrentPosition(position);
+    }
+
+    long get_current_position() {
+      return this->stepper.currentPosition();
+    }
+
     void do_home() {
       //Serial.print("Home sequence started, with speed: ");
       //Serial.println(this->home_speed);
@@ -225,7 +268,6 @@ class Led {
     }
 };
 
-// not working pins 0,1,9,10,11,34,35,36,39
 
 int endPoint = 1024;        // Move this many steps - 1024 = approx 1/4 turn
 int home_sensor_state_m1 = 0;
@@ -239,11 +281,13 @@ int new_speed_m3 = 25;
 AccelStepper stepper1(HALFSTEP, motor1_pin1, motor1_pin3, motor1_pin2, motor1_pin4);
 AccelStepper stepper2(HALFSTEP, motor2_pin1, motor2_pin3, motor2_pin2, motor2_pin4);
 AccelStepper stepper3(HALFSTEP, motor3_pin1, motor3_pin3, motor3_pin2, motor3_pin4);
-Motor motor_a(stepper1, home_sensor1_pin);
-Motor motor_b(stepper2, home_sensor2_pin);
-Motor motor_c(stepper3, home_sensor3_pin);
-Led led_a(led1_pin, 0);
-Led led_b(led2_pin, 1);
+Motor motor_a(stepper1, home_sensor1_pin, motor1_str);
+Motor motor_b(stepper2, home_sensor2_pin, motor2_str);
+Motor motor_c(stepper3, home_sensor3_pin, motor3_str);
+#if has_led
+  Led led_a(led1_pin, 0);
+  Led led_b(led2_pin, 1);
+#endif
 
 String received_string;
 int current_direction = 1;
@@ -273,23 +317,29 @@ void parse_string() {
     case motor3_str:
       used_motor = &motor_c;
       break;
-    case 'L':
-      used_led = &led_a;
-      is_led = true;
-      break;
-    case 'M':
-      used_led = &led_b;
-      is_led = true;
-      break;
   }
+  #if has_led
+    switch(axis) {
+      case led1_str:
+        used_led = &led_a;
+        is_led = true;
+        break;
+      case led2_str:
+        used_led = &led_b;
+        is_led = true;
+        break;
+    }
+  #endif
   float distance_or_speed = 0;
   if (received_string.length() > 2) {
     distance_or_speed = received_string.substring(2).toFloat();
   }
+  /*
   Serial.println("parse string: " + received_string + 
     ", Axis: " + String(axis) + 
     ", Mode: " + String(mode) +
     ", Speed or Distance: " + String(distance_or_speed));
+  */
   if (is_led) {
     used_led->set_to(int(distance_or_speed));
     return;
@@ -311,6 +361,12 @@ void parse_string() {
     case 'E':
       used_motor->reset();
       break;
+    case 'N':
+      used_motor->set_current_position(long(distance_or_speed));
+      break;
+    case 'G':
+      long current_position = used_motor->get_current_position();
+      Serial.print(axis + "G" + String(current_position) + ",");
   }
   return;
 }

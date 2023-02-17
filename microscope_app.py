@@ -2,9 +2,9 @@ import serial
 import os
 import abc
 
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore, QtGui
 import sys
-is_simulation = True
+is_simulation = False
 import pty
 if is_simulation:
     from picamera_sim import PiCamera
@@ -297,8 +297,9 @@ class BaseMotor:
     motion_type: MotionType
     serial_interface: serial.Serial
     unit_per_step: float
+    position: int
 
-    def __init__(self, name, serial_id, motion_type, serial_interface, unit_per_step):
+    def __init__(self, name, serial_id, motion_type, serial_interface: serial.Serial, unit_per_step):
         self.state = MotorState.UNKNOWN
         self.name = name
         self.serial_id = serial_id
@@ -312,10 +313,18 @@ class BaseMotor:
         print(f"send to motor: {serial_string}")
         self.send_serial_command(serial_string)
 
-    def send_serial_command(self, command:str):
-        return
+    def send_serial_command(self, command: str):
         self.serial_interface.write(command.encode())
 
+    def update_motor_position(self):
+        serial_command = f"{self.serial_id}G,"
+        self.send_serial_command(serial_command)
+        new_input = self.serial_interface.read_until(",".encode()).decode()
+        if serial_command[0:2] != new_input[0:2]:
+            raise ValueError(f"Wrong return: {serial_command} != {new_input}")
+        self.position = int(new_input[2:-1])
+        print(f"updated motor position: {self.position}")
+        return
 
     def __str__(self):
         return f"name: {self.name}, id: {self.serial_id}, type: {self.type}, interface: {self.serial_interface}"
@@ -372,7 +381,9 @@ class LinearMotor:
         print(f"speed: {speed}")
         self.motor.set_speed_mode_speed(speed)
 
-
+    def update_motor_position(self):
+        self.motor.update_motor_position()
+        self.position_mm =
 
 
 class MicroscopeGui(QtWidgets.QWidget):
