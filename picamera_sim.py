@@ -1,13 +1,16 @@
 
 class PiCamera:
-    brightness: int = 0
+    framerate: int = 10
+    brightness: int = 50
     contrast: int = 0
     saturation: int = 0
     sharpness: int = 0
-    iso: int = 0
-    shutter_speed: int = 0
+    iso: int = 60
+    shutter_speed: int = 100000
     exposure_compensation: int = 0
-    exposure_mode: str = "auto"
+    exposure_mode: str = "off"
+    awb_mode: str = "off"
+    awb_gains: tuple = (1, 1)
 
     def start_preview(self):
         pass
