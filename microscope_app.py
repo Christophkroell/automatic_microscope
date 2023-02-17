@@ -407,7 +407,8 @@ class MicroscopeGui(QtWidgets.QWidget):
         #time.sleep(2)
         self.setup_motors()
         #path_serial_controller = find_serial_device("controller", device_path="tty.bt")
-        self.controller_thread = SerialMonitor(serial_path="/dev/tty.bt_controller")
+        #self.controller_thread = SerialMonitor(serial_path="/dev/tty.bt_controller")
+        self.controller_thread = SerialMonitor(serial_path="/dev/rfcomm0")
         self.controller_thread.serial_input.connect(self.handle_controller_input)
         self.controller_thread.start()
 
@@ -429,8 +430,8 @@ class MicroscopeGui(QtWidgets.QWidget):
         main_layout.addWidget(camera_control_widget)
 
     def setup_motors(self):
-        path_serial_motor_fzt = find_serial_device("motor_controller_FZT")
-        path_serial_motor_xyr = find_serial_device("motor_controller_XYR")
+        path_serial_motor_fzt = find_serial_device("motor_controller_FZT", device_path="ttyUSB")
+        path_serial_motor_xyr = find_serial_device("motor_controller_XYR", device_path="ttyACM")
         self.serial_motor_fzt = serial.Serial(path_serial_motor_fzt, 115200)
         self.serial_motor_xyr = serial.Serial(path_serial_motor_xyr, 115200)
         self.motor_focus = LinearMotor(name="focus", serial_id="F", motion_type=MotionType.linear,
