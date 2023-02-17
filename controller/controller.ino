@@ -11,8 +11,8 @@ BluetoothSerial SerialBT;
 #define ANAIN_Y1 32
 #define ANAIN_X2 35
 #define ANAIN_Y2 34
-#define ANAIN_X3 36
-#define ANAIN_Y3 39
+#define ANAIN_X3 39
+#define ANAIN_Y3 36
 #define ANAIN_L1 27
 #define ANAIN_L2 14
 
