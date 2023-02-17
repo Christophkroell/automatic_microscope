@@ -1,8 +1,8 @@
 #include <AccelStepper.h>
 #define HALFSTEP 8
 
-#define is_xyr_board true
-#define is_fzt_board false
+#define is_xyr_board false
+#define is_fzt_board true
 
 //todo if xyr or ...
 #if is_xyr_board
@@ -90,15 +90,15 @@ class Motor {
     //float limit_min_mm;
     //float limit_max_mm;
     int home_pin;
-    int home_speed;
+    float home_speed;
     //float home_speed_mms;
     //int home_direction;
     //float speed_mms;
-    int speed;
+    float speed;
     //float speed_mode_speed_mms;
-    int speed_mode_speed;
-    int max_speed;
-    int acceleration;
+    float speed_mode_speed;
+    float max_speed;
+    float acceleration;
     //float max_speed_mms;
     //float acceleration_mms2;
     
@@ -138,8 +138,8 @@ class Motor {
       //this->home_direction = 1;
       //this->limit_min_mm = -0.01;
       //this->limit_max_mm = 100;
-      //this->max_speed_mms = 12.5;
-      //this->acceleration_mms2 = 4;
+      this->max_speed = 200;
+      this->acceleration = 100;
     }
     
     bool is_home_sensor_active() {
@@ -174,8 +174,9 @@ class Motor {
       }
       if (this->state == MOTOR_STATE::SPEEDMODE) {
         this->stepper.setSpeed(this->speed_mode_speed);
+        //Serial.print("speed mode: " + String(this->speed_mode_speed));
         this->stepper.runSpeed();
-        //Serial.println("in step mode");
+        //Serial.println(this->motor_id + " in speed mode: " + String(this->speed_mode_speed));
       }
     }
 
@@ -221,7 +222,7 @@ class Motor {
     bool set_state_to_speedmode() {
       if (this->state == MOTOR_STATE::READY || this->state == MOTOR_STATE::SPEEDMODE || this->state == MOTOR_STATE::UNKNOWN) {
         this->state = MOTOR_STATE::SPEEDMODE;
-        //Serial.println("was set to speed mode");
+        //Serial.println(String(this->motor_id) + ": was set to speed mode");
       }
     }
 
@@ -334,16 +335,18 @@ void parse_string() {
   if (received_string.length() > 2) {
     distance_or_speed = received_string.substring(2).toFloat();
   }
+
   /*
   Serial.println("parse string: " + received_string + 
     ", Axis: " + String(axis) + 
     ", Mode: " + String(mode) +
     ", Speed or Distance: " + String(distance_or_speed));
   */
-  if (is_led) {
+  #if is_led
     used_led->set_to(int(distance_or_speed));
     return;
-  }
+  #endif
+
   switch(mode) {
     case 'H':
       used_motor->do_home();
@@ -366,7 +369,7 @@ void parse_string() {
       break;
     case 'G':
       long current_position = used_motor->get_current_position();
-      Serial.print(axis + "G" + String(current_position) + ",");
+      Serial.print(String(axis) + "G" + String(current_position) + ",");
   }
   return;
 }
