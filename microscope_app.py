@@ -383,7 +383,8 @@ class LinearMotor:
 
     def update_motor_position(self):
         self.motor.update_motor_position()
-        self.position_mm =
+        # todo
+        #self.position_mm =
 
 
 class MicroscopeGui(QtWidgets.QWidget):
