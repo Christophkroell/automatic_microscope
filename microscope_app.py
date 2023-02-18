@@ -285,8 +285,7 @@ class Light:
         print(f"send to light: {serial_string}")
         self.send_serial_command(serial_string)
 
-    def send_serial_command(self, command:str):
-        return
+    def send_serial_command(self, command: str):
         self.serial_interface.write(command.encode())
 
 
