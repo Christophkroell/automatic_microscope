@@ -245,9 +245,9 @@ class VideoThread(QtCore.QThread):
 
     def run(self):
         camera = self.camera
-        camera.resolution = (640, 480)
+        camera.resolution = (1920, 1080)
         #camera.framerate = 24
-        rawCapture = PiRGBArray(camera, size=(640, 480))
+        rawCapture = PiRGBArray(camera, size=(1920, 1080))
 
         for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
             image = frame.array
@@ -424,7 +424,7 @@ class MicroscopeGui(QtWidgets.QWidget):
             self.thread.change_pixmap_signal.connect(self.update_image)
             self.thread.start()
             self.video_widget = QtWidgets.QLabel()
-            self.video_widget.setFixedSize(500, 500)
+            self.video_widget.setFixedSize(1920, 1080)
             main_layout.addWidget(self.video_widget)
 
         main_layout.addWidget(camera_control_widget)
