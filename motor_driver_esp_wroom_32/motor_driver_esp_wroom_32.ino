@@ -322,10 +322,12 @@ void parse_string() {
       case led1_str:
         used_led = &led_a;
         is_led = true;
+        Serial.print("LED 1 case")
         break;
       case led2_str:
         used_led = &led_b;
         is_led = true;
+        Serial.print("LED 2 case")
         break;
   #endif
   }
@@ -333,17 +335,17 @@ void parse_string() {
   if (received_string.length() > 2) {
     distance_or_speed = received_string.substring(2).toFloat();
   }
-
-  /*
   Serial.println("parse string: " + received_string + 
     ", Axis: " + String(axis) + 
     ", Mode: " + String(mode) +
     ", Speed or Distance: " + String(distance_or_speed));
-  */
-  #if is_led
-    used_led->set_to(int(distance_or_speed));
-    Serial.print("led value send: " + String(distance_or_speed));
-    return;
+    
+  #if has_led
+    if (is_led) {
+      used_led->set_to(int(distance_or_speed));
+      Serial.print("led value send: " + String(distance_or_speed));
+      return;
+    }
   #endif
 
   switch(mode) {
