@@ -318,9 +318,7 @@ void parse_string() {
     case motor3_str:
       used_motor = &motor_c;
       break;
-  }
   #if has_led
-    switch(axis) {
       case led1_str:
         used_led = &led_a;
         is_led = true;
@@ -329,8 +327,8 @@ void parse_string() {
         used_led = &led_b;
         is_led = true;
         break;
-    }
   #endif
+  }
   float distance_or_speed = 0;
   if (received_string.length() > 2) {
     distance_or_speed = received_string.substring(2).toFloat();
@@ -344,6 +342,7 @@ void parse_string() {
   */
   #if is_led
     used_led->set_to(int(distance_or_speed));
+    Serial.print("led value send: " + String(distance_or_speed));
     return;
   #endif
 
