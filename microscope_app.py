@@ -420,13 +420,14 @@ class MicroscopeGui(QtWidgets.QWidget):
         main_layout.addWidget(stop_button)
 
         if not is_simulation:
-            self.thread = VideoThread(camera=self.camera)
-            self.thread.change_pixmap_signal.connect(self.update_image)
-            self.thread.start()
-            self.video_widget = QtWidgets.QLabel()
-            self.video_widget.setFixedSize(1920, 1080)
-            main_layout.addWidget(self.video_widget)
-
+            if False:
+                self.thread = VideoThread(camera=self.camera)
+                self.thread.change_pixmap_signal.connect(self.update_image)
+                self.thread.start()
+                self.video_widget = QtWidgets.QLabel()
+                self.video_widget.setFixedSize(1920, 1080)
+                main_layout.addWidget(self.video_widget)
+        self.camera.start_preview()
         main_layout.addWidget(camera_control_widget)
 
     def setup_motors(self):
