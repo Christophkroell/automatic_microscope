@@ -14,3 +14,6 @@ class PiCamera:
 
     def start_preview(self):
         pass
+
+class PiRGBArray:
+    pass

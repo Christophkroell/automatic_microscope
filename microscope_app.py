@@ -8,6 +8,7 @@ is_simulation = False
 import pty
 if is_simulation:
     from picamera_sim import PiCamera
+    from picamera_sim import PiRGBArray
 else:
     import cv2
     from picamera import PiCamera
@@ -15,6 +16,22 @@ else:
     from picamera.array import PiRGBArray
 import time
 import enum
+
+
+class CameraResolution:
+    sensor_mode: int
+    resolution: tuple
+    frame_rates: tuple
+    def __init__(self, sensor_mode, resolution, frame_rates):
+        self.sensor_mode = sensor_mode
+        self.resolution = resolution
+        self.frame_rates = frame_rates
+
+
+class CameraResolutionOptions:
+    max_resolution = CameraResolution(sensor_mode=2, resolution=(3280, 2464), frame_rates=(0.1, 15))
+    half_resolution = CameraResolution(sensor_mode=4, resolution=(1640, 1232), frame_rates=(0.1, 40))
+    low_resolution = CameraResolution(sensor_mode=7, resolution=(640, 480), frame_rates=(40, 90))
 
 
 class MotorState(enum.Enum):
@@ -75,6 +92,8 @@ class SerialMonitor(QtCore.QThread):
 
 class CameraSettingsWidget(QtWidgets.QWidget):
     framerate: int = 10
+    framerate_spinbox: QtWidgets.QDoubleSpinBox
+    shutter_speed_spinbox: QtWidgets.QSpinBox
     brightness: int = 50
     contrast: int = 0
     saturation: int = 0
@@ -85,21 +104,23 @@ class CameraSettingsWidget(QtWidgets.QWidget):
     exposure_mode: str = "off"
     awb_mode: str = "off"
     awb_gains: tuple = (1, 1)
+    #used_resolution: CameraResolution
 
     def __init__(self, camera, parent=None):
         super().__init__(parent)
-
         self.camera = camera
+        #self.used_resolution = used_resolution
         self.initUI()
 
     def initUI(self):
         layout = QtWidgets.QFormLayout()
 
         # Add a label and spinbox for controlling the framerate
-        framerate_spinbox = QtWidgets.QSpinBox()
+        framerate_spinbox = QtWidgets.QDoubleSpinBox()
         framerate_spinbox.setRange(1, 30)
         framerate_spinbox.valueChanged.connect(self.set_framerate)
         framerate_spinbox.setValue(self.framerate)
+        self.framerate_spinbox = framerate_spinbox
         layout.addRow("Framerate", framerate_spinbox)
 
         # Add a label and spinbox for controlling the brightness
@@ -132,7 +153,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
         # Add a label and spinbox for controlling the ISO
         iso_spinbox = QtWidgets.QSpinBox()
-        iso_spinbox.setRange(0, 800)
+        iso_spinbox.setRange(60, 800)
         iso_spinbox.setValue(self.camera.iso)
         iso_spinbox.valueChanged.connect(self.setISO)
         layout.addRow("ISO", iso_spinbox)
@@ -142,6 +163,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
         shutter_speed_spinbox.setRange(0, 60000000)
         shutter_speed_spinbox.setValue(self.camera.shutter_speed)
         shutter_speed_spinbox.valueChanged.connect(self.setShutterSpeed)
+        self.shutter_speed_spinbox = shutter_speed_spinbox
         layout.addRow("Shutter Speed", shutter_speed_spinbox)
 
         # Add a label and spinbox for controlling the exposure compensation
@@ -187,6 +209,17 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
         self.setLayout(layout)
 
+    def update_camera_resolution(self, used_resolution:CameraResolution):
+        self.framerate_spinbox.setMinimum(used_resolution.frame_rates[0])
+        self.framerate_spinbox.setMaximum(used_resolution.frame_rates[1])
+        min_sutter = int(1*1e3/used_resolution.frame_rates[1])
+        max_shutter = int(1*1e3/used_resolution.frame_rates[0])
+        print(f"min_sutter: {min_sutter}, max_shutter: {max_shutter}")
+        self.shutter_speed_spinbox.setMinimum(min_sutter)
+        self.shutter_speed_spinbox.setMaximum(max_shutter)
+        self.camera.sensor_mode = used_resolution.sensor_mode
+        self.camera.resolution = used_resolution.resolution
+
     def set_framerate(self, value):
         self.framerate = value
         self.camera.framerate = value
@@ -213,7 +246,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
     def setShutterSpeed(self, value):
         self.shutter_speed = value
-        self.camera.shutter_speed = value
+        self.camera.shutter_speed = value*1e3
 
     def setExposureCompensation(self, value):
         self.exposure_compensation = value
@@ -238,25 +271,34 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
 class VideoThread(QtCore.QThread):
     change_pixmap_signal = QtCore.pyqtSignal(QtGui.QImage)
+    raw_capture: PiRGBArray
+    camera_resolution: CameraResolution
 
-    def __init__(self, camera):
+    def __init__(self, camera, camera_resolution):
         super(VideoThread, self).__init__()
+        self.camera_resolution = camera_resolution
         self.camera = camera
 
     def run(self):
         camera = self.camera
-        camera.resolution = (1920, 1080)
+        camera.sensor_mode = self.camera_resolution.sensor_mode
+        camera.resolution = self.camera_resolution.resolution
         #camera.framerate = 24
-        rawCapture = PiRGBArray(camera, size=(1920, 1080))
+        self.raw_capture = PiRGBArray(camera, size=self.camera_resolution.resolution)
 
-        for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        for frame in camera.capture_continuous(self.raw_capture, format="bgr", use_video_port=True):
             image = frame.array
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             h, w, ch = image.shape
             bytesPerLine = ch * w
             qt_image = QtGui.QImage(image.data, w, h, bytesPerLine, QtGui.QImage.Format_RGB888)
             self.change_pixmap_signal.emit(qt_image)
-            rawCapture.truncate(0)
+            self.raw_capture.truncate(0)
+
+    def set_resolution(self, new_resolution:CameraResolution):
+        self.camera.sensor_mode = new_resolution.sensor_mode
+        self.camera.resolution = new_resolution.resolution
+        self.raw_capture = PiRGBArray(self.camera, size=new_resolution.resolution)
 
 
 class MotionControlWidget(QtWidgets.QWidget):
@@ -406,28 +448,34 @@ class MicroscopeGui(QtWidgets.QWidget):
         self.camera = PiCamera()
         #time.sleep(2)
         self.setup_motors()
-        #path_serial_controller = find_serial_device("controller", device_path="tty.bt")
+        path_serial_controller = find_serial_device("controller", device_path="ttyhh")
         #self.controller_thread = SerialMonitor(serial_path="/dev/tty.bt_controller")
-        self.controller_thread = SerialMonitor(serial_path="/dev/rfcomm0")
+        #self.controller_thread = SerialMonitor(serial_path="/dev/rfcomm0")
+        self.controller_thread = SerialMonitor(serial_path=path_serial_controller)
         self.controller_thread.serial_input.connect(self.handle_controller_input)
         self.controller_thread.start()
 
+        used_resolution = CameraResolutionOptions.half_resolution
+
         camera_control_widget = CameraSettingsWidget(camera=self.camera)
+        camera_control_widget.update_camera_resolution(used_resolution=used_resolution)
         main_layout = QtWidgets.QHBoxLayout()
         self.setLayout(main_layout)
         stop_button = QtWidgets.QPushButton("stop")
         stop_button.pressed.connect(self.controller_thread.stop)
         main_layout.addWidget(stop_button)
 
+        print(f"is_simulation: {is_simulation}")
         if not is_simulation:
-            if False:
-                self.thread = VideoThread(camera=self.camera)
+            if True:
+                self.thread = VideoThread(camera=self.camera, camera_resolution=used_resolution)
                 self.thread.change_pixmap_signal.connect(self.update_image)
                 self.thread.start()
                 self.video_widget = QtWidgets.QLabel()
-                self.video_widget.setFixedSize(1920, 1080)
+                self.video_widget.setFixedSize(used_resolution.resolution)
                 main_layout.addWidget(self.video_widget)
-        self.camera.start_preview()
+            else:
+                self.camera.start_preview()
         main_layout.addWidget(camera_control_widget)
 
     def setup_motors(self):
