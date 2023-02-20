@@ -246,7 +246,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
     def setShutterSpeed(self, value):
         self.shutter_speed = value
-        self.camera.shutter_speed = value*1e3
+        self.camera.shutter_speed = int(value*1e3)
 
     def setExposureCompensation(self, value):
         self.exposure_compensation = value
