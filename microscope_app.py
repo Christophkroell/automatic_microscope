@@ -472,7 +472,7 @@ class MicroscopeGui(QtWidgets.QWidget):
                 self.thread.change_pixmap_signal.connect(self.update_image)
                 self.thread.start()
                 self.video_widget = QtWidgets.QLabel()
-                self.video_widget.setFixedSize(used_resolution.resolution)
+                self.video_widget.setFixedSize(used_resolution.resolution[0], used_resolution.resolution[1])
                 main_layout.addWidget(self.video_widget)
             else:
                 self.camera.start_preview()
