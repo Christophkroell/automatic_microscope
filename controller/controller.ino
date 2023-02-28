@@ -63,26 +63,25 @@ public:
 
   void send_serial_if_needed() {
     this->update_values();
-
-    if (abs(this->average - this->previous_average) < 20) {
+    if (abs(this->average - this->zero_offset) < this->dead_center) {
+      if (this->previous_average == 0) {
+        return;
+      }
+      SerialBT.print(String(this->axis) + String("S0,"));
+      this->previous_average = 0;
+      return;
+    }
+    if (abs(this->average - this->previous_average) < 5) {
       return;
     }
     this->previous_average = this->average;
     int send_value = 0;
-    if (abs(this->average - this->zero_offset) < this->dead_center) {
-      //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
-      SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
-      return;
-      //return float(0);
-    }
     if (this->average < this->zero_offset) {
       send_value = ((this->average / (this->zero_offset - this->dead_center)) - 1) * 1000;
-      //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
       SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
       return;
     }
     send_value = ((this->average - this->zero_offset) / (this->sensor_resolution - this->zero_offset)) * 1000;
-    //Serial.print(String(this->axis) + String("S") + String(send_value) + ",");
     SerialBT.print(String(this->axis) + String("S") + String(send_value) + ",");
     return;
   }
