@@ -2,9 +2,9 @@ import serial
 import os
 import abc
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui
 import sys
-is_simulation = False
+is_simulation = True
 import pty
 if is_simulation:
     from picamera_sim import PiCamera
@@ -16,12 +16,16 @@ else:
     from picamera.array import PiRGBArray
 import time
 import enum
+from functools import partial
+import shelve
+import datetime
 
 
 class CameraResolution:
     sensor_mode: int
     resolution: tuple
     frame_rates: tuple
+
     def __init__(self, sensor_mode, resolution, frame_rates):
         self.sensor_mode = sensor_mode
         self.resolution = resolution
@@ -29,8 +33,8 @@ class CameraResolution:
 
 
 class CameraResolutionOptions:
-    max_resolution = CameraResolution(sensor_mode=2, resolution=(3280, 2464), frame_rates=(0.1, 15))
-    half_resolution = CameraResolution(sensor_mode=4, resolution=(1640, 1232), frame_rates=(0.1, 40))
+    max_resolution = CameraResolution(sensor_mode=2, resolution=(3280, 2464), frame_rates=(0.5, 15))
+    half_resolution = CameraResolution(sensor_mode=4, resolution=(1640, 1232), frame_rates=(0.5, 40))
     low_resolution = CameraResolution(sensor_mode=7, resolution=(640, 480), frame_rates=(40, 90))
 
 
@@ -90,86 +94,99 @@ class SerialMonitor(QtCore.QThread):
         self.serial_port.close()
 
 
-class CameraSettingsWidget(QtWidgets.QWidget):
+class CameraSettings:
+    used_resolution: CameraResolution = CameraResolutionOptions.max_resolution
     framerate: int = 10
-    framerate_spinbox: QtWidgets.QDoubleSpinBox
-    shutter_speed_spinbox: QtWidgets.QSpinBox
     brightness: int = 50
     contrast: int = 0
     saturation: int = 0
     sharpness: int = 0
     iso: int = 60
-    shutter_speed: int = 30000
+    exposure_time_ms: int = 30
     exposure_compensation: int = 0
     exposure_mode: str = "off"
     awb_mode: str = "off"
     awb_gains: tuple = (1, 1)
-    #used_resolution: CameraResolution
+
+
+class CameraSettingsWidget(QtWidgets.QWidget):
+    settings = CameraSettings
+    framerate_spinbox: QtWidgets.QDoubleSpinBox
+    exposure_time_ms_spinbox: QtWidgets.QSpinBox
 
     def __init__(self, camera, parent=None):
         super().__init__(parent)
         self.camera = camera
+        setting_path = "settings/camera.shelve"
+        if os.path.exists(setting_path):
+            self.shelved_parameter = shelve.open(setting_path, writeback=True)
+            self.settings = self.shelved_parameter["camera_settings"]
+        else:
+            self.settings = CameraSettings()
+            self.shelved_parameter = shelve.open(setting_path, writeback=True)
+            self.shelved_parameter["camera_settings"] = self.settings
         #self.used_resolution = used_resolution
         self.initUI()
 
     def initUI(self):
         layout = QtWidgets.QFormLayout()
 
+        sensor_mode_combobox = QtWidgets.QComboBox()
+        self.dict_of_sensor_modes = {"Low": CameraResolutionOptions.low_resolution,
+                                     "Medium": CameraResolutionOptions.half_resolution,
+                                     "High": CameraResolutionOptions.max_resolution}
+        sensor_mode_combobox.addItems(self.dict_of_sensor_modes)
+        sensor_mode_combobox.currentTextChanged.connect(self.sensor_mode_changed)
+        self.sensor_mode_combobox = sensor_mode_combobox
+        layout.addRow("Sensor", sensor_mode_combobox)
+
         # Add a label and spinbox for controlling the framerate
         framerate_spinbox = QtWidgets.QDoubleSpinBox()
         framerate_spinbox.setRange(1, 30)
         framerate_spinbox.valueChanged.connect(self.set_framerate)
-        framerate_spinbox.setValue(self.framerate)
         self.framerate_spinbox = framerate_spinbox
         layout.addRow("Framerate", framerate_spinbox)
 
         # Add a label and spinbox for controlling the brightness
         brightness_spinbox = QtWidgets.QSpinBox()
         brightness_spinbox.setRange(0, 100)
-        brightness_spinbox.setValue(self.camera.brightness)
         brightness_spinbox.valueChanged.connect(self.setBrightness)
         layout.addRow("Brightness", brightness_spinbox)
 
         # Add a label and spinbox for controlling the contrast
         contrast_spinbox = QtWidgets.QSpinBox()
         contrast_spinbox.setRange(-100, 100)
-        contrast_spinbox.setValue(self.camera.contrast)
         contrast_spinbox.valueChanged.connect(self.setContrast)
         layout.addRow("Contrast", contrast_spinbox)
 
         # Add a label and spinbox for controlling the saturation
         saturation_spinbox = QtWidgets.QSpinBox()
         saturation_spinbox.setRange(-100, 100)
-        saturation_spinbox.setValue(self.camera.saturation)
         saturation_spinbox.valueChanged.connect(self.setSaturation)
         layout.addRow("Saturation", saturation_spinbox)
 
         # Add a label and spinbox for controlling the sharpness
         sharpness_spinbox = QtWidgets.QSpinBox()
         sharpness_spinbox.setRange(-100, 100)
-        sharpness_spinbox.setValue(self.camera.sharpness)
         sharpness_spinbox.valueChanged.connect(self.setSharpness)
         layout.addRow("Sharpness", sharpness_spinbox)
 
         # Add a label and spinbox for controlling the ISO
         iso_spinbox = QtWidgets.QSpinBox()
         iso_spinbox.setRange(60, 800)
-        iso_spinbox.setValue(self.camera.iso)
         iso_spinbox.valueChanged.connect(self.setISO)
         layout.addRow("ISO", iso_spinbox)
 
         # Add a label and spinbox for controlling the shutter speed
-        shutter_speed_spinbox = QtWidgets.QSpinBox()
-        shutter_speed_spinbox.setRange(0, 60000000)
-        shutter_speed_spinbox.setValue(self.camera.shutter_speed)
-        shutter_speed_spinbox.valueChanged.connect(self.setShutterSpeed)
-        self.shutter_speed_spinbox = shutter_speed_spinbox
-        layout.addRow("Shutter Speed", shutter_speed_spinbox)
+        exposure_time_ms_spinbox = QtWidgets.QSpinBox()
+        #exposure_time_ms_spinbox.setRange(0, 600)
+        exposure_time_ms_spinbox.valueChanged.connect(self.set_exposure_time_ms)
+        self.exposure_time_ms_spinbox = exposure_time_ms_spinbox
+        layout.addRow("Exposure time ms", exposure_time_ms_spinbox)
 
         # Add a label and spinbox for controlling the exposure compensation
         exposure_compensation_spinbox = QtWidgets.QSpinBox()
         exposure_compensation_spinbox.setRange(-25, 25)
-        exposure_compensation_spinbox.setValue(self.camera.exposure_compensation)
         exposure_compensation_spinbox.valueChanged.connect(self.setExposureCompensation)
         layout.addRow("Exposure Compensation", exposure_compensation_spinbox)
 
@@ -178,7 +195,6 @@ class CameraSettingsWidget(QtWidgets.QWidget):
         exposure_mode_combobox.addItems(
             ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong",
              "fixedfps", "antishake", "fireworks"])
-        exposure_mode_combobox.setCurrentText(self.camera.exposure_mode)
         exposure_mode_combobox.currentTextChanged.connect(self.setExposureMode)
         layout.addRow("Exposure Mode", exposure_mode_combobox)
 
@@ -186,19 +202,16 @@ class CameraSettingsWidget(QtWidgets.QWidget):
         awb_mode_label = QtWidgets.QLabel("AWB Mode")
         awb_mode_combobox = QtWidgets.QComboBox()
         awb_mode_combobox.addItems(["off", "auto"])
-        awb_mode_combobox.setCurrentText(self.camera.awb_mode)
         awb_mode_combobox.currentTextChanged.connect(self.set_awb_mode)
         layout.addRow(awb_mode_label, awb_mode_combobox)
 
         # Add a label and spinbox for controlling the exposure compensation
         #self.exposure_compensation_label = QtWidgets.QLabel("Exposure Compensation")
-        self.awb_gains = self.camera.awb_gains
+        self.settings.awb_gains = self.camera.awb_gains
         awb_gain1_spinbox = QtWidgets.QDoubleSpinBox()
         awb_gain2_spinbox = QtWidgets.QDoubleSpinBox()
         awb_gain1_spinbox.setRange(0, 8)
         awb_gain2_spinbox.setRange(0, 8)
-        awb_gain1_spinbox.setValue(self.awb_gains[0])
-        awb_gain2_spinbox.setValue(self.awb_gains[1])
         awb_gain1_spinbox.valueChanged.connect(self.set_awb_gain1)
         awb_gain2_spinbox.valueChanged.connect(self.set_awb_gain2)
         gain_layout = QtWidgets.QHBoxLayout()
@@ -209,64 +222,100 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
         self.setLayout(layout)
 
-    def update_camera_resolution(self, used_resolution:CameraResolution):
+        framerate_spinbox.setValue(self.settings.framerate)
+        brightness_spinbox.setValue(self.settings.brightness)
+        contrast_spinbox.setValue(self.settings.contrast)
+        saturation_spinbox.setValue(self.settings.saturation)
+        sharpness_spinbox.setValue(self.settings.sharpness)
+        iso_spinbox.setValue(self.settings.iso)
+        exposure_time_ms_spinbox.setValue(self.settings.exposure_time_ms)
+        exposure_compensation_spinbox.setValue(self.settings.exposure_compensation)
+        exposure_mode_combobox.setCurrentText(self.settings.exposure_mode)
+        awb_mode_combobox.setCurrentText(self.settings.awb_mode)
+        awb_gain1_spinbox.setValue(self.settings.awb_gains[0])
+        awb_gain2_spinbox.setValue(self.settings.awb_gains[1])
+
+    def update_shelve(self):
+        self.shelved_parameter["camera_settings"] = self.settings
+        self.shelved_parameter.sync()
+
+    def sensor_mode_changed(self, sensor_mode: str):
+        self.update_camera_resolution(self.dict_of_sensor_modes[sensor_mode])
+
+    def update_camera_resolution(self, used_resolution: CameraResolution):
         self.framerate_spinbox.setMinimum(used_resolution.frame_rates[0])
         self.framerate_spinbox.setMaximum(used_resolution.frame_rates[1])
-        min_sutter = int(1*1e3/used_resolution.frame_rates[1])
-        max_shutter = int(1*1e3/used_resolution.frame_rates[0])
-        print(f"min_sutter: {min_sutter}, max_shutter: {max_shutter}")
-        self.shutter_speed_spinbox.setMinimum(min_sutter)
-        self.shutter_speed_spinbox.setMaximum(max_shutter)
+        min_exposure_time_ms = int(1*1e3/used_resolution.frame_rates[1])
+        max_exposure_time_ms = int(1*1e3/used_resolution.frame_rates[0])
+        print(f"min_sutter: {min_exposure_time_ms}, max_exposure_time_ms: {max_exposure_time_ms}")
+        self.exposure_time_ms_spinbox.setMinimum(min_exposure_time_ms)
+        self.exposure_time_ms_spinbox.setMaximum(max_exposure_time_ms)
         self.camera.sensor_mode = used_resolution.sensor_mode
         self.camera.resolution = used_resolution.resolution
+        self.settings.used_resolution = used_resolution
+        self.update_shelve()
 
-    def set_framerate(self, value):
-        self.framerate = value
-        self.camera.framerate = value
+    def set_framerate(self, framerate):
+        self.settings.framerate = framerate
+        self.camera.framerate = framerate
+        max_exposure_time_ms = int(1 * 1e3 / framerate)
+        self.exposure_time_ms_spinbox.setMaximum(max_exposure_time_ms)
+        self.update_shelve()
 
     def setBrightness(self, value):
-        self.brightness = value
+        self.settings.brightness = value
         self.camera.brightness = value
+        self.update_shelve()
 
     def setContrast(self, value):
-        self.contrast = value
+        self.settings.contrast = value
         self.camera.contrast = value
+        self.update_shelve()
 
     def setSaturation(self, value):
-        self.saturation = value
+        self.settings.saturation = value
         self.camera.saturation = value
+        self.update_shelve()
 
     def setSharpness(self, value):
-        self.sharpness = value
+        self.settings.sharpness = value
         self.camera.sharpness = value
+        self.update_shelve()
 
     def setISO(self, value):
-        self.iso = value
+        self.settings.iso = value
         self.camera.iso = value
+        self.update_shelve()
 
-    def setShutterSpeed(self, value):
-        self.shutter_speed = value
-        self.camera.shutter_speed = int(value*1e3)
+    def set_exposure_time_ms(self, exposure_time_ms):
+        self.settings.exposure_time_ms = exposure_time_ms
+        self.camera.shutter_speed = int(exposure_time_ms * 1e3)
+        self.update_shelve()
 
     def setExposureCompensation(self, value):
-        self.exposure_compensation = value
+        self.settings.exposure_compensation = value
         self.camera.exposure_compensation = value
+        self.update_shelve()
 
     def setExposureMode(self, value):
-        self.exposure_mode = value
+        self.settings.exposure_mode = value
         self.camera.exposure_mode = value
+        self.update_shelve()
 
     def set_awb_mode(self, value):
-        self.awb_mode = value
+        self.settings.awb_mode = value
         self.camera.awb_mode = value
+        self.update_shelve()
 
     def set_awb_gain1(self, value):
-        self.awb_gains = (value, self.awb_gains[1])
-        self.camera.awb_gains = self.awb_gains
+        self.settings.awb_gains = (value, self.settings.awb_gains[1])
+        self.camera.awb_gains = self.settings.awb_gains
+        self.update_shelve()
 
     def set_awb_gain2(self, value):
-        self.awb_gains = (self.awb_gains[0], value)
-        self.camera.awb_gains = self.awb_gains
+        self.settings.awb_gains = (self.settings.awb_gains[0], value)
+        self.camera.awb_gains = self.settings.awb_gains
+        self.update_shelve()
 
 
 class VideoThread(QtCore.QThread):
@@ -301,11 +350,6 @@ class VideoThread(QtCore.QThread):
         self.raw_capture = PiRGBArray(self.camera, size=new_resolution.resolution)
 
 
-class MotionControlWidget(QtWidgets.QWidget):
-    def __init__(self):
-        super(MotionControlWidget, self).__init__()
-
-
 class MotionType:
     linear: str = "linear"
     rotary: str = "rotary"
@@ -338,19 +382,22 @@ class BaseMotor:
     motion_type: MotionType
     serial_interface: serial.Serial
     unit_per_step: float
-    position: int
+    position_in_steps: float
 
-    def __init__(self, name, serial_id, motion_type, serial_interface: serial.Serial, unit_per_step):
+    def __init__(self, name, serial_id, motion_type, serial_interface: serial.Serial):
         self.state = MotorState.UNKNOWN
         self.name = name
         self.serial_id = serial_id
         self.type = motion_type
         self.serial_interface = serial_interface
-        self.unit_per_step = unit_per_step
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.timeout.connect(self.update_motor_position)
+        #self.update_timer.start(250)
 
-    def set_speed_mode_speed(self, speed: float):
-        steps_per_second = speed * self.unit_per_step
-        serial_string = f"{self.serial_id}S{steps_per_second:3},"
+    def set_speed_mode(self, motor_rotation_per_second: float):
+        print(f"motor_rotation_per_second: {motor_rotation_per_second}")
+        steps_per_second = motor_rotation_per_second * self.steps_per_rotation
+        serial_string = f"{self.serial_id}S{steps_per_second:.3f},"
         print(f"send to motor: {serial_string}")
         self.send_serial_command(serial_string)
 
@@ -363,69 +410,150 @@ class BaseMotor:
         new_input = self.serial_interface.read_until(",".encode()).decode()
         if serial_command[0:2] != new_input[0:2]:
             raise ValueError(f"Wrong return: {serial_command} != {new_input}")
-        self.position = int(new_input[2:-1])
-        print(f"updated motor position: {self.position}")
+        self.position_in_steps = float(new_input[2:-1])
+        print(f"updated motor position_in_steps: {self.position_in_steps}")
         return
+
+    def get_position_in_rotations(self):
+        self.update_motor_position()
+        return self.position_in_steps / self.steps_per_rotation
 
     def __str__(self):
         return f"name: {self.name}, id: {self.serial_id}, type: {self.type}, interface: {self.serial_interface}"
 
 
-class RotaryMotor:
-    home_speed_degs: float = 0
-    home_direction: int = 1
-    limit_min_deg: float = -0.01
-    limit_max_deg: float = 100
-    speed_degs: float = 0
-    max_speed_degs: float = 1
-    acceleration_degs2: float = 4
-    deg_per_motor_rotation: float
-    #deg_per_motor_rotation: float = 360/steps_per_rotation * 15/120 # 120 tilt gear 0.010986
-    # deg_per_step: float = 360/steps_per_rotation * 15/140 # 140 rotary gear 0.009416852678571
+class MotorParameters:
+    motion_type: MotionType
+    speed_unit: str
+    position_unit: str
+    home_speed: float
+    home_direction: int
+    limit_min: float
+    limit_max: float
+    speed: float
+    max_speed: float
+    acceleration: float
+    position_in_rotation: float
+    position_per_rotation: float
 
-    def __init__(self, name, serial_id, motion_type, serial_interface, gear_ratio):
-        self.deg_per_motor_rotation = 360 * gear_ratio  # 0.0086181640625
-        self.motor = BaseMotor(name, serial_id, motion_type, serial_interface, self.deg_per_motor_rotation)
+    def __init__(self, motion_type: MotionType, units_per_rotation):
+        self.units_per_rotation = units_per_rotation
+        self.direction = 1
+        if motion_type == MotionType.linear:
+            self.linear_motor_settings()
+            return
+        if motion_type == MotionType.rotary:
+            self.rotary_motor_settings()
+            return
+
+    def rotary_motor_settings(self):
+        self.position_unit: str = "deg"
+        self.speed_unit: str = f"{self.position_unit}/s"
+        self.home_speed: float = 1
+        self.home_direction: int = 1
+        self.limit_min: float = -90
+        self.limit_max: float = 90
+        self.speed: float = 1
+        self.max_speed: float = 1
+        self.acceleration: float = 4
+        self.position_per_rotation: float = 0
+        self.position_in_rotation: float = 0
+
+    def linear_motor_settings(self):
+        self.position_unit: str = "mm"
+        self.speed_unit: str = f"{self.position_unit}/s"
+        self.home_speed: float = 1
+        self.home_direction: int = 1
+        self.limit_min: float = -0.01
+        self.limit_max: float = 100
+        self.speed: float = 0
+        self.max_speed: float = 2
+        self.acceleration: float = 4
+        self.position_per_rotation: float = 0
+        self.position_in_rotation: float = 0
+
+
+class Motor:
+    position: float = 0
+
+    def __init__(self, name, serial_id, motion_type, serial_interface, units_per_rotation):
         self.name = name
-        self.serial_id = serial_id
-        self.type = motion_type
-        self.serial_interface = serial_interface
+        shelve_path = f"settings/{name}.shelve"
+        if os.path.exists(shelve_path):
+            self.shelved_parameter = shelve.open(shelve_path, writeback=True)
+            self.parameter = self.shelved_parameter["parameter"]
+            self.parameter: MotorParameters
+        else:
+            self.parameter = MotorParameters(motion_type=motion_type, units_per_rotation=units_per_rotation)
+            self.shelved_parameter = shelve.open(shelve_path, writeback=True)
+            self.shelved_parameter["parameter"] = self.parameter
+        self.base = BaseMotor(name, serial_id, motion_type, serial_interface)
 
     def set_speed_mode_multiplier(self, speed_multiplier):
+        units_per_rotation = self.parameter.units_per_rotation
+        max_speed = self.parameter.max_speed
+        direction = self.parameter.direction
         if speed_multiplier == 0:
             # todo ask motor for position
-            self.motor.state = MotorState.READY
+            self.base.state = MotorState.READY
         else:
-            self.motor.state = MotorState.MOVING
-        speed = self.max_speed_degs * speed_multiplier
-        print(f"speed: {speed}")
-        self.motor.set_speed_mode_speed(speed)
+            self.base.state = MotorState.MOVING
+        speed = max_speed * speed_multiplier * units_per_rotation * direction
+        print(f"speed: {speed}{self.parameter.speed_unit}")
+        self.base.set_speed_mode(speed)
+
+    def get_max_speed(self) -> float:
+        return self.parameter.max_speed
+
+    def set_max_speed(self, max_speed):
+        self.parameter.max_speed = max_speed
+
+    def get_position(self):
+        self.position = self.base.get_position_in_rotations() / self.parameter.units_per_rotation
+        print(f"steps_per_second: {self.position}")
+        return self.position
+
+    def parameter_changed(self, parameter_name, value):
+        print(f"parameter_changed: {parameter_name}: {value}")
+        self.parameter.__setattr__(parameter_name, value)
+        self.shelved_parameter["parameter"] = self.parameter
+        self.shelved_parameter.sync()
 
 
-class LinearMotor:
-    home_speed_mms: float = 0
-    home_direction: int = 1
-    limit_min_mm: float = -0.01
-    limit_max_mm: float = 100
-    speed_mms: float = 0
-    max_speed_mms: float = 2
-    acceleration_mms2: float = 4
-    mm_per_motor_rotation: float
-    #mm_per_step: float = 35.3/steps_per_rotation
+class MotorWidget(QtWidgets.QPushButton):
+    def __init__(self, motor: Motor):
+        super(MotorWidget, self).__init__()
+        name = motor.base.name
+        self.setText(name)
+        self.setup_widget = QtWidgets.QWidget()
+        self.setup_widget.setWindowTitle(name)
+        setting_layout = QtWidgets.QFormLayout()
+        self.setup_widget.setLayout(setting_layout)
 
-    def __init__(self, name, serial_id, motion_type, serial_interface, circumference_mm=35.3):
-        self.mm_per_motor_rotation = circumference_mm # 0.0086181640625
-        self.motor = BaseMotor(name, serial_id, motion_type, serial_interface, self.mm_per_motor_rotation)
+        position_in_rotation_spinbox = QtWidgets.QDoubleSpinBox()
+        position_in_rotation_spinbox.setValue(motor.parameter.position_in_rotation)
+        position_in_rotation_changed = partial(motor.parameter_changed, "position_in_rotation")
+        position_in_rotation_spinbox.valueChanged.connect(position_in_rotation_changed)
+        setting_layout.addRow(f"Position {motor.parameter.position_unit}", position_in_rotation_spinbox)
 
-    def set_speed_mode_multiplier(self, speed_multiplier):
-        speed = self.max_speed_mms * speed_multiplier
-        print(f"speed: {speed}")
-        self.motor.set_speed_mode_speed(speed)
+        direction_spinbox = QtWidgets.QSpinBox()
+        direction_spinbox.setSingleStep(2)
+        direction_spinbox.setMinimum(-1)
+        direction_spinbox.setMaximum(1)
+        direction_spinbox.setValue(motor.parameter.direction)
+        direction_changed = partial(motor.parameter_changed, "direction")
+        direction_spinbox.valueChanged.connect(direction_changed)
+        setting_layout.addRow("Direction", direction_spinbox)
 
-    def update_motor_position(self):
-        self.motor.update_motor_position()
-        # todo
-        #self.position_mm =
+        max_speed_spinbox = QtWidgets.QDoubleSpinBox()
+        max_speed_spinbox.setValue(motor.get_max_speed())
+        max_speed_spinbox.valueChanged.connect(motor.set_max_speed)
+        max_speed_changed = partial(motor.parameter_changed, "max_speed")
+        max_speed_spinbox.valueChanged.connect(max_speed_changed)
+        setting_layout.addRow(f"Max speed {motor.parameter.speed_unit}", max_speed_spinbox)
+
+    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
+        self.setup_widget.show()
 
 
 class MicroscopeGui(QtWidgets.QWidget):
@@ -434,19 +562,20 @@ class MicroscopeGui(QtWidgets.QWidget):
     serial_motor_xyr: serial.Serial
     light1: Light
     light2: Light
-    motor_x: LinearMotor
-    motor_y: LinearMotor
-    motor_rotation: RotaryMotor
-    motor_focus: LinearMotor
-    motor_zoom: LinearMotor
-    motor_tilt: RotaryMotor
-    dict_of_motors: {LinearMotor}
+    motor_x: Motor
+    motor_y: Motor
+    motor_rotation: Motor
+    motor_focus: Motor
+    motor_zoom: Motor
+    motor_tilt: Motor
+    dict_of_motors: {str: Motor}
     dict_of_lights: {Light}
 
     def __init__(self):
         super(MicroscopeGui, self).__init__()
         self.camera = PiCamera()
         #time.sleep(2)
+        self.motor_layout = QtWidgets.QVBoxLayout()
         self.setup_motors()
         path_serial_controller = find_serial_device("controller", device_path="ttyhh")
         #self.controller_thread = SerialMonitor(serial_path="/dev/tty.bt_controller")
@@ -461,9 +590,17 @@ class MicroscopeGui(QtWidgets.QWidget):
         camera_control_widget.update_camera_resolution(used_resolution=used_resolution)
         main_layout = QtWidgets.QHBoxLayout()
         self.setLayout(main_layout)
+
+        control_layout = QtWidgets.QVBoxLayout()
+        main_layout.addLayout(control_layout)
+
         stop_button = QtWidgets.QPushButton("stop")
         stop_button.pressed.connect(self.controller_thread.stop)
-        main_layout.addWidget(stop_button)
+        control_layout.addWidget(stop_button)
+
+        capture_image_button = QtWidgets.QPushButton("Capture")
+        capture_image_button.pressed.connect(self.capture_image)
+        control_layout.addWidget(capture_image_button)
 
         print(f"is_simulation: {is_simulation}")
         if not is_simulation:
@@ -477,25 +614,30 @@ class MicroscopeGui(QtWidgets.QWidget):
             else:
                 self.camera.start_preview()
         main_layout.addWidget(camera_control_widget)
+        main_layout.addLayout(self.motor_layout)
+
+    def capture_image(self):
+        date = datetime.datetime.now().strftime("%Y_%m_%d %H:%M:%S")
+        self.camera.capture(f"images/{date}.jpg")
 
     def setup_motors(self):
         path_serial_motor_fzt = find_serial_device("motor_controller_FZT", device_path="ttyUSB")
         path_serial_motor_xyr = find_serial_device("motor_controller_XYR", device_path="ttyACM")
         self.serial_motor_fzt = serial.Serial(path_serial_motor_fzt, 115200)
         self.serial_motor_xyr = serial.Serial(path_serial_motor_xyr, 115200)
-        self.motor_focus = LinearMotor(name="focus", serial_id="F", motion_type=MotionType.linear,
-                                       serial_interface=self.serial_motor_fzt)
-        self.motor_zoom = LinearMotor(name="zoom", serial_id="Z", motion_type=MotionType.linear,
-                                      serial_interface=self.serial_motor_fzt)
-        self.motor_tilt = RotaryMotor(name="tilt", serial_id="T", motion_type=MotionType.rotary,
-                                      serial_interface=self.serial_motor_fzt, gear_ratio=15/140)
+        self.motor_focus = Motor(name="focus", serial_id="F", motion_type=MotionType.linear,
+                                 serial_interface=self.serial_motor_fzt, units_per_rotation=35.3)
+        self.motor_zoom = Motor(name="zoom", serial_id="Z", motion_type=MotionType.linear,
+                                serial_interface=self.serial_motor_fzt, units_per_rotation=35.3)
+        self.motor_tilt = Motor(name="tilt", serial_id="T", motion_type=MotionType.rotary,
+                                serial_interface=self.serial_motor_fzt, units_per_rotation=360*15/140)
+        self.motor_x = Motor(name="x", serial_id="X", motion_type=MotionType.linear,
+                             serial_interface=self.serial_motor_xyr, units_per_rotation=35.3)
+        self.motor_y = Motor(name="y", serial_id="Y", motion_type=MotionType.linear,
+                             serial_interface=self.serial_motor_xyr, units_per_rotation=35.3)
+        self.motor_rotation = Motor(name="rotation", serial_id="R", motion_type=MotionType.rotary,
+                                    serial_interface=self.serial_motor_xyr, units_per_rotation=360*15/120)
 
-        self.motor_x = LinearMotor(name="x", serial_id="X", motion_type=MotionType.linear,
-                                   serial_interface=self.serial_motor_xyr)
-        self.motor_y = LinearMotor(name="y", serial_id="Y", motion_type=MotionType.linear,
-                                   serial_interface=self.serial_motor_xyr)
-        self.motor_rotation = RotaryMotor(name="tilt", serial_id="R", motion_type=MotionType.rotary,
-                                          serial_interface=self.serial_motor_xyr, gear_ratio=15/120)
         self.dict_of_motors = {
             "F": self.motor_focus,
             "Z": self.motor_zoom,
@@ -504,6 +646,8 @@ class MicroscopeGui(QtWidgets.QWidget):
             "Y": self.motor_y,
             "R": self.motor_rotation
         }
+        for motor in self.dict_of_motors.values():
+            self.motor_layout.addWidget(MotorWidget(motor))
 
         self.light1 = Light("light_1", "L", self.serial_motor_fzt)
         self.light2 = Light("light_2", "M", self.serial_motor_fzt)
@@ -528,7 +672,6 @@ class MicroscopeGui(QtWidgets.QWidget):
             request_type = serial_input[1]
             if request_type == 'S':
                 speed_factor = float(serial_input[2::]) * 1e-3
-                motor: LinearMotor
                 motor.set_speed_mode_multiplier(speed_factor)
                 print(f"speed_factor: {speed_factor}")
             return
@@ -543,6 +686,7 @@ class MicroscopeGui(QtWidgets.QWidget):
         #self.serial_controller.close()
         self.serial_motor_xyr.close()
         self.serial_motor_fzt.close()
+
 
 if __name__ == '__main__':
     time.sleep(5)

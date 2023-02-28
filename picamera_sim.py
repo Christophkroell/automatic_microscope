@@ -15,5 +15,11 @@ class PiCamera:
     def start_preview(self):
         pass
 
+    def capture(self, file_path):
+        print(f"save file to: {file_path}")
+
+    def __setattr__(self, key, value):
+        print(f"camer: {key} : {value}")
+
 class PiRGBArray:
     pass

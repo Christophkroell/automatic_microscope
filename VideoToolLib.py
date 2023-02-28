@@ -53,11 +53,11 @@ class CameraSettingsWidget(QtWidgets.QWidget):
 
         # Add a label and spinbox for controlling the shutter speed
         self.shutter_speed_label = QtWidgets.QLabel("Shutter Speed")
-        self.shutter_speed_spinbox = QtWidgets.QSpinBox()
-        self.shutter_speed_spinbox.setRange(0, 60000000)
-        self.shutter_speed_spinbox.setValue(self.camera.shutter_speed)
-        self.shutter_speed_spinbox.valueChanged.connect(self.setShutterSpeed)
-        layout.addRow(self.shutter_speed_label, self.shutter_speed_spinbox)
+        self.exposure_time_ms_spinbox = QtWidgets.QSpinBox()
+        self.exposure_time_ms_spinbox.setRange(0, 600)
+        self.exposure_time_ms_spinbox.setValue(self.camera.shutter_speed)
+        self.exposure_time_ms_spinbox.valueChanged.connect(self.set_exposure_time_ms)
+        layout.addRow(self.shutter_speed_label, self.exposure_time_ms_spinbox)
 
         # Add a label and spinbox for controlling the exposure compensation
         self.exposure_compensation_label = QtWidgets.QLabel("Exposure Compensation")
@@ -94,7 +94,7 @@ class CameraSettingsWidget(QtWidgets.QWidget):
     def setISO(self, value):
         self.camera.iso = value
 
-    def setShutterSpeed(self, value):
+    def set_exposure_time_ms(self, value):
         self.camera.shutter_speed = value
 
     def setExposureCompensation(self, value):
