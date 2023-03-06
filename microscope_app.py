@@ -36,7 +36,7 @@ class CameraResolution:
 
 
 class CameraResolutionOptions:
-    max_resolution = CameraResolution(sensor_mode=2, resolution=(3280, 2464), frame_rates=(0.5, 15))
+    max_resolution = CameraResolution(sensor_mode=2, resolution=(2464, 2464), frame_rates=(0.5, 15))
     half_resolution = CameraResolution(sensor_mode=4, resolution=(1640, 1232), frame_rates=(0.5, 40))
     low_resolution = CameraResolution(sensor_mode=7, resolution=(640, 480), frame_rates=(40, 90))
 
@@ -333,18 +333,22 @@ class VideoThread(QtCore.QThread):
 
     def run(self):
         camera = self.camera
-        camera.sensor_mode = self.camera_resolution.sensor_mode
-        camera.resolution = self.camera_resolution.resolution
-        print(f"camera resolution: {self.camera.resolution}")
-        #camera.framerate = 24
-        self.raw_capture = PiRGBArray(camera, size=self.camera_resolution.resolution)
+        mode = self.camera_resolution.sensor_mode
+        resolution = self.camera_resolution.resolution
+        #resolution = (2464, 2464)
+        #mode = 2
+        camera.sensor_mode = mode
+        camera.resolution = resolution
+        print(f"camera resolution: {self.camera.resolution}, mode: {camera.sensor_mode}")
+        self.raw_capture = PiRGBArray(camera, size=resolution)
 
         for frame in camera.capture_continuous(self.raw_capture, format="bgr", use_video_port=True):
             image = frame.array
+            #print(image.shape)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             h, w, ch = image.shape
             bytes_per_line = ch * w
-            qt_image = QtGui.QImage(image.data, w, h, bytes_per_line, QtGui.QImage.Format.Format_RGB888)
+            qt_image = QtGui.QImage(image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
             self.change_pixmap_signal.emit(qt_image)
             self.raw_capture.truncate(0)
 
@@ -636,7 +640,7 @@ class MicroscopeGui(QtWidgets.QWidget):
                 self.video_thread.change_pixmap_signal.connect(self.update_image)
                 self.video_thread.start()
                 self.video_widget = QtWidgets.QLabel()
-                self.video_widget.setFixedSize(1600, 900)
+                self.video_widget.setFixedSize(900, 900)
                 main_layout.addWidget(self.video_widget)
             else:
                 self.camera.start_preview()
@@ -691,7 +695,7 @@ class MicroscopeGui(QtWidgets.QWidget):
         pass
 
     def update_image(self, qt_image:QtGui.QImage):
-        pixmap = QtGui.QPixmap.fromImage(qt_image.scaledToWidth(1600))
+        pixmap = QtGui.QPixmap.fromImage(qt_image.scaledToWidth(800))
         self.video_widget.setPixmap(pixmap)
 
     def handle_controller_input(self, serial_input):
@@ -718,7 +722,7 @@ class MicroscopeGui(QtWidgets.QWidget):
 
 
 if __name__ == '__main__':
-    time.sleep(5)
+    time.sleep(2)
     app = QtWidgets.QApplication(sys.argv)
     microscope_gui = MicroscopeGui()
     microscope_gui.show()
