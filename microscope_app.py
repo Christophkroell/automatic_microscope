@@ -610,7 +610,7 @@ class MicroscopeGui(QtWidgets.QWidget):
         self.controller_thread.serial_input.connect(self.handle_controller_input)
         self.controller_thread.start()
 
-        used_resolution = CameraResolutionOptions.half_resolution
+        used_resolution = CameraResolutionOptions.max_resolution
 
         camera_control_widget = CameraSettingsWidget(camera=self.camera)
         camera_control_widget.update_camera_resolution(used_resolution=used_resolution)
