@@ -335,6 +335,7 @@ class VideoThread(QtCore.QThread):
         camera = self.camera
         camera.sensor_mode = self.camera_resolution.sensor_mode
         camera.resolution = self.camera_resolution.resolution
+        print(f"camera resolution: {self.camera.resolution}")
         #camera.framerate = 24
         self.raw_capture = PiRGBArray(camera, size=self.camera_resolution.resolution)
 
@@ -342,12 +343,12 @@ class VideoThread(QtCore.QThread):
             image = frame.array
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             h, w, ch = image.shape
-            bytesPerLine = ch * w
-            qt_image = QtGui.QImage(image.data, w, h, bytesPerLine, QtGui.QImage.Format_RGB888)
+            bytes_per_line = ch * w
+            qt_image = QtGui.QImage(image.data, w, h, bytes_per_line, QtGui.QImage.Format.Format_RGB888)
             self.change_pixmap_signal.emit(qt_image)
             self.raw_capture.truncate(0)
 
-    def set_resolution(self, new_resolution:CameraResolution):
+    def set_resolution(self, new_resolution: CameraResolution):
         self.camera.sensor_mode = new_resolution.sensor_mode
         self.camera.resolution = new_resolution.resolution
         self.raw_capture = PiRGBArray(self.camera, size=new_resolution.resolution)
@@ -631,11 +632,11 @@ class MicroscopeGui(QtWidgets.QWidget):
         print(f"is_simulation: {is_simulation}")
         if not is_simulation:
             if True:
-                self.thread = VideoThread(camera=self.camera, camera_resolution=used_resolution)
-                self.thread.change_pixmap_signal.connect(self.update_image)
-                self.thread.start()
+                self.video_thread = VideoThread(camera=self.camera, camera_resolution=used_resolution)
+                self.video_thread.change_pixmap_signal.connect(self.update_image)
+                self.video_thread.start()
                 self.video_widget = QtWidgets.QLabel()
-                self.video_widget.setFixedSize(used_resolution.resolution[0], used_resolution.resolution[1])
+                self.video_widget.setFixedSize(1600, 900)
                 main_layout.addWidget(self.video_widget)
             else:
                 self.camera.start_preview()
