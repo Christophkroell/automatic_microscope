@@ -484,6 +484,8 @@ class Motor:
 
     def __init__(self, name, serial_id, motion_type, serial_interface, units_per_rotation):
         self.name = name
+        if not os.path.exists("settings"):
+            os.mkdir("settings")
         shelve_path = f"settings/{name}.shelve"
         if os.path.exists(shelve_path):
             self.shelved_parameter = shelve.open(shelve_path, writeback=True)
