@@ -690,8 +690,8 @@ class MicroscopeGui(QtWidgets.QWidget):
 
         pass
 
-    def update_image(self, qt_image):
-        pixmap = QtGui.QPixmap.fromImage(qt_image)
+    def update_image(self, qt_image:QtGui.QImage):
+        pixmap = QtGui.QPixmap.fromImage(qt_image.scaledToWidth(1600))
         self.video_widget.setPixmap(pixmap)
 
     def handle_controller_input(self, serial_input):
