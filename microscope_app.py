@@ -1,19 +1,22 @@
 import serial
 import os
-import abc
-
-from PyQt6 import QtWidgets, QtCore, QtGui
 import sys
-is_simulation = True
+
+print(f"os.name: {os.name}")
+print(f"sys.platform: {sys.platform}")
+is_simulation = False
+if sys.platform == "darwin":
+    is_simulation = True
 import pty
 if is_simulation:
     from picamera_sim import PiCamera
     from picamera_sim import PiRGBArray
+    from PyQt6 import QtWidgets, QtCore, QtGui
 else:
     import cv2
     from picamera import PiCamera
-    import picamera.array
     from picamera.array import PiRGBArray
+    from PyQt5 import QtWidgets, QtCore, QtGui
 import time
 import enum
 from functools import partial
@@ -424,6 +427,7 @@ class BaseMotor:
 
 class MotorParameters:
     motion_type: MotionType
+    motor_enabled: bool
     speed_unit: str
     position_unit: str
     home_speed: float
@@ -447,6 +451,7 @@ class MotorParameters:
             return
 
     def rotary_motor_settings(self):
+        self.motor_enabled: bool = True
         self.position_unit: str = "deg"
         self.speed_unit: str = f"{self.position_unit}/s"
         self.home_speed: float = 1
@@ -460,6 +465,7 @@ class MotorParameters:
         self.position_in_rotation: float = 0
 
     def linear_motor_settings(self):
+        self.motor_enabled: bool = True
         self.position_unit: str = "mm"
         self.speed_unit: str = f"{self.position_unit}/s"
         self.home_speed: float = 1
@@ -483,6 +489,7 @@ class Motor:
             self.shelved_parameter = shelve.open(shelve_path, writeback=True)
             self.parameter = self.shelved_parameter["parameter"]
             self.parameter: MotorParameters
+            # self.parameter_changed("motor_enabled", True)
         else:
             self.parameter = MotorParameters(motion_type=motion_type, units_per_rotation=units_per_rotation)
             self.shelved_parameter = shelve.open(shelve_path, writeback=True)
@@ -520,15 +527,32 @@ class Motor:
         self.shelved_parameter.sync()
 
 
-class MotorWidget(QtWidgets.QPushButton):
+class MotorWidget(QtWidgets.QWidget):
+    setup_widget: QtWidgets.QWidget
     def __init__(self, motor: Motor):
         super(MotorWidget, self).__init__()
-        name = motor.base.name
-        self.setText(name)
+        self.motor = motor
+        self.name = motor.base.name
+
+        main_layout = QtWidgets.QHBoxLayout()
         self.setup_widget = QtWidgets.QWidget()
-        self.setup_widget.setWindowTitle(name)
+        self.setLayout(main_layout)
+        open_settings_button = QtWidgets.QPushButton(self.name)
+        open_settings_button.pressed.connect(self.setup_widget.show)
+        main_layout.addWidget(open_settings_button)
+        self.setup_widget_startup()
+
+    def setup_widget_startup(self):
+        self.setup_widget.setWindowTitle(self.name)
         setting_layout = QtWidgets.QFormLayout()
         self.setup_widget.setLayout(setting_layout)
+        motor = self.motor
+
+        motor_enabled_checkbox = QtWidgets.QCheckBox()
+        motor_enabled_changed = partial(motor.parameter_changed, "motor_enabled")
+        motor_enabled_checkbox.setChecked(motor.parameter.motor_enabled)
+        motor_enabled_checkbox.stateChanged.connect(motor_enabled_changed)
+        setting_layout.addRow(f"Motor enabled", motor_enabled_checkbox)
 
         position_in_rotation_spinbox = QtWidgets.QDoubleSpinBox()
         position_in_rotation_spinbox.setValue(motor.parameter.position_in_rotation)
