@@ -644,6 +644,8 @@ class MicroscopeGui(QtWidgets.QWidget):
 
     def capture_image(self):
         date = datetime.datetime.now().strftime("%Y_%m_%d %H:%M:%S")
+        if not os.path.exists("images"):
+            os.mkdir("images")
         self.camera.capture(f"images/{date}.jpg")
 
     def setup_motors(self):
