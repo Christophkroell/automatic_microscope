@@ -1,17 +1,15 @@
 import sys
+import os
 is_simulation = False
 if sys.platform == "darwin":
     is_simulation = True
 
 if is_simulation:
-    from picamera_sim import PiCamera
-    from picamera_sim import PiRGBArray
-    from PyQt6 import QtWidgets, QtCore, QtGui
+    from PyQt6 import QtWidgets
 else:
-    import cv2
-    from picamera import PiCamera
-    from picamera.array import PiRGBArray
-    from PyQt5 import QtWidgets, QtCore, QtGui
+    from PyQt5 import QtWidgets
+from Presets.Camera import CameraSettings, CameraResolutionOptions, CameraResolution
+import shelve
 
 
 class CameraSettingsWidget(QtWidgets.QWidget):
